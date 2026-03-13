@@ -30,6 +30,14 @@ class ManageRolesPermissionMixin(PermissionRequiredMixin):
     module_slug = "accounts"
     permission_codename = "manage_roles"
 
+    def has_permission(self):
+        user = self.request.user
+        return (
+            user.is_superuser
+            or user.role == "admin"
+            or user.has_permission(self.module_slug, self.permission_codename)
+        )
+
 
 # ==================== Module Views ====================
 

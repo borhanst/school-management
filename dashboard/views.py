@@ -8,12 +8,10 @@ from attendance.models import Attendance
 from examinations.models import Grade
 from fees.models import FeeInvoice, FeePayment
 from library.models import BookIssue
-from roles.decorators import permission_required
 from students.models import AcademicYear, ClassLevel, Student
 
 
 @login_required
-@permission_required("dashboard", "view")
 def dashboard_index(request):
     """Dashboard index view."""
     user = request.user

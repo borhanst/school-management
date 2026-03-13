@@ -5,15 +5,9 @@ from django.db.models import Q
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
-from roles.permissions import (
-    SUPERUSER_PERMISSION,
-    build_permission_key,
-    has_permission_key,
-)
-
 
 class User(AbstractUser):
-    """Custom User model with role-based access control."""
+    """Custom User model using the built-in role field only."""
 
     ROLE_CHOICES = [
         ("admin", "Administrator"),
@@ -59,151 +53,81 @@ class User(AbstractUser):
     def __str__(self):
         return self.get_full_name() or self.username
 
-    # ==================== Permission Methods (Enhanced with Caching) ====================
+    # ==================== Compatibility Permission Methods ====================
 
     def get_all_permissions(self, force_refresh=False):
-        """
-        Get all aggregated permissions from all active roles.
-        Uses Django cache for performance.
-
-        Args:
-            force_refresh: If True, bypass cache and rebuild permissions
-
-        Returns:
-            set: Permission strings like {'students_view', 'fees_add'}
-        """
+        """Get all effective permissions from active role assignments."""
         if not self.is_active:
             return set()
-
-        # Superusers have all permissions
         if self.is_superuser:
-            return {SUPERUSER_PERMISSION}
+            return {"*"}
 
-        # Check cache first (unless force_refresh)
+        cache_key = f"user_perms_{self.id}"
         if not force_refresh:
-            cache_key = f"user_perms_{self.id}"
             cached = cache.get(cache_key)
             if cached is not None:
                 return cached
 
         permissions = set()
-
-        # Aggregate permissions from all active role assignments
-        active_assignments = (
-            self.user_roles.filter(is_active=True, role__is_active=True)
-            .select_related("role")
-            .prefetch_related(
-                "role__permissions__module",
-                "role__permissions__permission_type",
-            )
+        active_roles = self.get_active_roles().prefetch_related(
+            "role__permissions__module", "role__permissions__permission_type"
         )
 
-        for user_role in active_assignments:
-            if user_role.is_expired():
-                continue
-            for role_perm in user_role.role.permissions.all():
-                perm_string = build_permission_key(
-                    role_perm.module.slug, role_perm.permission_type.codename
-                )
-                permissions.add(perm_string)
+        for user_role in active_roles:
+            for role_permission in user_role.role.permissions.all():
+                if not role_permission.module.is_active:
+                    continue
+                permissions.add(role_permission.codename)
 
-        # Check for denied permissions (explicit denies override grants)
-        denied = self._get_denied_permissions()
-        if denied:
-            # Remove any denied permissions
-            permissions -= denied
-
-        # Cache for 5 minutes (300 seconds)
-        cache_key = f"user_perms_{self.id}"
         cache.set(cache_key, permissions, 300)
-
         return permissions
 
     def _get_denied_permissions(self):
-        """
-        Get explicitly denied permissions for this user.
-        These override any granted permissions.
-
-        Returns:
-            set: Permission strings that are explicitly denied
-        """
-        # Placeholder for denied permissions feature
-        # Could be implemented as a separate model
+        """Reserved for future explicit deny rules."""
         return set()
 
     def has_permission(
         self, module_slug, permission_codename, force_refresh=False
     ):
-        """
-        Check if user has a specific permission.
-
-        Args:
-            module_slug: Module identifier (e.g., 'students')
-            permission_codename: Action (e.g., 'view', 'add')
-            force_refresh: Bypass cache
-
-        Returns:
-            bool: True if user has permission
-        """
         if self.is_superuser:
             return True
-
         if not self.is_active:
             return False
 
-        # Check for explicit deny first
-        denied = self._get_denied_permissions()
-        permission_key = build_permission_key(module_slug, permission_codename)
-        if permission_key in denied:
+        permission_key = f"{module_slug}_{permission_codename}"
+        if permission_key in self._get_denied_permissions():
             return False
 
-        return has_permission_key(
-            self.get_all_permissions(force_refresh),
-            module_slug,
-            permission_codename,
+        return permission_key in self.get_all_permissions(
+            force_refresh=force_refresh
         )
 
     def has_any_permission(self, permissions_list, force_refresh=False):
-        """
-        Check if user has ANY of the specified permissions.
+        if self.is_superuser:
+            return True
+        if not self.is_active:
+            return False
 
-        Args:
-            permissions_list: List of tuples [(module_slug, codename), ...]
-            force_refresh: Bypass cache
-
-        Returns:
-            bool: True if user has at least one permission
-        """
-        user_perms = self.get_all_permissions(force_refresh)
-        for module_slug, codename in permissions_list:
-            if has_permission_key(user_perms, module_slug, codename):
+        user_perms = self.get_all_permissions(force_refresh=force_refresh)
+        for module_slug, permission_codename in permissions_list:
+            if f"{module_slug}_{permission_codename}" in user_perms:
                 return True
         return False
 
     def has_all_permissions(self, permissions_list, force_refresh=False):
-        """
-        Check if user has ALL of the specified permissions.
+        if self.is_superuser:
+            return True
+        if not self.is_active:
+            return False
 
-        Args:
-            permissions_list: List of tuples [(module_slug, codename), ...]
-            force_refresh: Bypass cache
-
-        Returns:
-            bool: True if user has all permissions
-        """
-        user_perms = self.get_all_permissions(force_refresh)
-        for module_slug, codename in permissions_list:
-            if not has_permission_key(user_perms, module_slug, codename):
+        user_perms = self.get_all_permissions(force_refresh=force_refresh)
+        for module_slug, permission_codename in permissions_list:
+            if f"{module_slug}_{permission_codename}" not in user_perms:
                 return False
         return True
 
     def get_active_roles(self):
-        """
-        Get all active role assignments for the user.
-
-        Returns:
-            QuerySet: Active UserRole assignments
-        """
+        """Return active, non-expired dynamic role assignments."""
         return (
             self.user_roles.filter(is_active=True, role__is_active=True)
             .filter(
@@ -213,15 +137,16 @@ class User(AbstractUser):
         )
 
     def get_role_names(self):
-        """
-        Get names of all active roles.
+        """Return active dynamic role names plus the built-in profile role."""
+        if not self.is_active:
+            return []
 
-        Returns:
-            list: List of role name strings
-        """
-        return list(
+        role_names = list(
             self.get_active_roles().values_list("role__name", flat=True)
         )
+        if self.role and self.role not in role_names:
+            role_names.append(self.role)
+        return role_names
 
     def get_modules_with_permissions(self):
         """
@@ -241,22 +166,13 @@ class User(AbstractUser):
         return result
 
     def get_highest_priority_role(self):
-        """
-        Get the highest priority active role.
-
-        Returns:
-            Role or None: The role with highest priority
-        """
-        active_roles = self.get_active_roles()
-        if not active_roles.exists():
-            return None
-        return active_roles.order_by("-role__priority").first().role
+        """Return the highest-priority active dynamic role."""
+        active_roles = self.get_active_roles().order_by("-role__priority")
+        assignment = active_roles.first()
+        return assignment.role if assignment else None
 
     def clear_permission_cache(self):
-        """
-        Clear the cached permissions for this user.
-        Call this when user's roles or permissions change.
-        """
+        """Clear cached effective permissions for this user."""
         cache_key = f"user_perms_{self.id}"
         cache.delete(cache_key)
 

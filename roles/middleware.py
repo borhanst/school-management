@@ -1,35 +1,10 @@
-"""
-Middleware for adding permission context to requests.
-"""
-
 from django.utils.deprecation import MiddlewareMixin
-
-from .permissions import has_permission_key
 
 
 class PermissionContextMiddleware(MiddlewareMixin):
-    """
-    Middleware to add permission context to request.
-    Provides quick access to common permission checks via request.permission.
-
-    Usage in views:
-        # Quick permission check
-        if request.permission.can('students', 'view'):
-            ...
-
-        # Quick role check
-        if request.permission.is('admin'):
-            ...
-
-        # Access cached permissions
-        permissions = request.permission.permissions
-
-        # Access role names
-        roles = request.permission.roles
-    """
+    """Attach a permission helper to each request."""
 
     def process_request(self, request):
-        # Add permission helper to authenticated users
         if request.user.is_authenticated:
             request.permission = PermissionContext(request.user)
         else:
@@ -37,81 +12,30 @@ class PermissionContextMiddleware(MiddlewareMixin):
 
 
 class PermissionContext:
-    """Quick permission checking helper attached to request."""
+    """Expose permission helpers on the request object."""
 
     def __init__(self, user):
         self.user = user
-        self._permissions = None
-        self._roles = None
 
     @property
     def permissions(self):
-        """Get all cached permissions for the user."""
-        if self._permissions is None:
-            self._permissions = self.user.get_all_permissions()
-        return self._permissions
+        return self.user.get_all_permissions()
 
     @property
     def roles(self):
-        """Get all role names for the user."""
-        if self._roles is None:
-            self._roles = self.user.get_role_names()
-        return self._roles
+        return self.user.get_role_names()
 
     def can(self, module, action):
-        """
-        Quick check if user has permission.
-
-        Args:
-            module: Module slug (e.g., 'students')
-            action: Action (e.g., 'view')
-
-        Returns:
-            bool: True if user has permission
-        """
-        return has_permission_key(self.permissions, module, action)
+        return self.user.has_permission(module, action)
 
     def has_role(self, role):
-        """
-        Quick check if user has specific role.
-
-        Args:
-            role: Role name (e.g., 'admin')
-
-        Returns:
-            bool: True if user has the role
-        """
-        return role in self.roles
+        return role in self.user.get_role_names()
 
     def can_any(self, *permissions):
-        """
-        Quick check if user has any of the specified permissions.
-
-        Args:
-            permissions: Tuples of (module, action)
-
-        Returns:
-            bool: True if user has at least one permission
-        """
-        for module, action in permissions:
-            if self.can(module, action):
-                return True
-        return False
+        return self.user.has_any_permission(permissions)
 
     def can_all(self, *permissions):
-        """
-        Quick check if user has all of the specified permissions.
-
-        Args:
-            permissions: Tuples of (module, action)
-
-        Returns:
-            bool: True if user has all permissions
-        """
-        for module, action in permissions:
-            if not self.can(module, action):
-                return False
-        return True
+        return self.user.has_all_permissions(permissions)
 
 
 class AnonymousPermissionContext:
@@ -135,4 +59,4 @@ class AnonymousPermissionContext:
         return False
 
     def can_all(self, *permissions):
-        return True  # Empty set of requirements is satisfied
+        return False

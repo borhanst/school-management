@@ -29,6 +29,11 @@ def get_user_permissions_from_db(user):
             role__user_assignments__is_active=True,
             role__user_assignments__role__is_active=True,
             role__is_active=True,
+            module__is_active=True,
+        )
+        .filter(
+            Q(role__user_assignments__expires_at__isnull=True)
+            | Q(role__user_assignments__expires_at__gte=timezone.now())
         )
         .values_list("module__slug", "permission_type__codename")
         .distinct()
@@ -62,7 +67,11 @@ def check_permission_efficient(user, module_slug, action):
         role__user_assignments__role__is_active=True,
         role__is_active=True,
         module__slug=module_slug,
+        module__is_active=True,
         permission_type__codename=action,
+    ).filter(
+        Q(role__user_assignments__expires_at__isnull=True)
+        | Q(role__user_assignments__expires_at__gte=timezone.now())
     ).exists()
 
 
@@ -89,6 +98,7 @@ def get_users_with_permission(module_slug, action):
             is_active=True,
             role__is_active=True,
         )
+        .filter(Q(expires_at__isnull=True) | Q(expires_at__gte=timezone.now()))
         .values_list("user_id", flat=True)
         .distinct()
     )

@@ -12,6 +12,8 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     # Accounts
     path("accounts/", include("accounts.urls", namespace="accounts")),
+    # Roles
+    path("roles/", include("roles.urls", namespace="roles")),
     # Dashboard
     path("dashboard/", include("dashboard.urls", namespace="dashboard")),
     # Students
@@ -37,8 +39,6 @@ urlpatterns = [
     ),
     # Reports
     path("reports/", include("reports.urls", namespace="reports")),
-    # Roles
-    path("roles/", include("roles.urls", namespace="roles")),
     # Home
     path("", include("dashboard.urls", namespace="home")),
 ]

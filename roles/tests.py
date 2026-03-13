@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, timedelta
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AnonymousUser
@@ -6,6 +6,7 @@ from django.http import HttpResponse
 from django.template import Context, Template
 from django.test import Client, TestCase, override_settings
 from django.urls import path, reverse
+from django.utils import timezone
 from django.views import View
 
 from roles.decorators import PermissionRequiredMixin, permission_required
@@ -129,6 +130,33 @@ class PermissionResolutionTests(PermissionTestMixin, TestCase):
 
         self.assertTrue(user.has_permission("students", "edit"))
 
+    def test_expired_and_inactive_assignments_are_ignored(self):
+        user = self.create_user("teacher_expired")
+        role = Role.objects.create(name="Expired Role")
+        role.permissions.add(self.create_permission("students", "view"))
+
+        expired_assignment = UserRole.objects.create(
+            user=user,
+            role=role,
+            is_active=True,
+        )
+        expired_assignment.expires_at = timezone.now() - timedelta(days=1)
+        expired_assignment.save(update_fields=["expires_at"])
+
+        self.assertFalse(user.has_permission("students", "view"))
+
+        active_assignment = UserRole.objects.create(
+            user=user,
+            role=Role.objects.create(name="Active Role"),
+            is_active=False,
+        )
+        active_assignment.role.permissions.add(
+            self.create_permission("students", "edit")
+        )
+        user.clear_permission_cache()
+
+        self.assertFalse(user.has_permission("students", "edit"))
+
 
 @override_settings(ROOT_URLCONF=__name__)
 class PermissionDecoratorTests(PermissionTestMixin, TestCase):
@@ -216,6 +244,25 @@ class PermissionTemplateTagTests(PermissionTestMixin, TestCase):
         self.assertEqual(malformed, "")
         self.assertEqual(anonymous, "")
 
+    def test_template_any_all_and_role_tags_use_dynamic_assignments(self):
+        user = self.create_user("teacher_tags")
+        role = Role.objects.create(name="Attendance Manager")
+        role.permissions.add(self.create_permission("students", "view"))
+        role.permissions.add(self.create_permission("attendance", "mark"))
+        UserRole.objects.create(user=user, role=role)
+        user.clear_permission_cache()
+
+        rendered = Template(
+            "{% load permission_tags %}"
+            "{% if user|has_any_permission:'students.view,fees.view' %}any{% endif %}"
+            "{% if user|has_all_permissions:'students.view,attendance.mark' %}all{% endif %}"
+            "{% if user|has_role:'Attendance Manager' %}role{% endif %}"
+        ).render(Context({"user": user}))
+
+        self.assertIn("any", rendered)
+        self.assertIn("all", rendered)
+        self.assertIn("role", rendered)
+
     def test_sidebar_hides_links_without_permission(self):
         user = self.create_user("teacher6")
         self.assign_permission(user, "students", "view")
@@ -293,6 +340,23 @@ class PermissionIntegrationTests(PermissionTestMixin, TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(response.json()["students"]), 1)
 
+    def test_role_management_bootstrap_access(self):
+        admin_user = self.create_user("admin_bootstrap", role="admin")
+        self.client.force_login(admin_user)
+        response = self.client.get(reverse("roles:role_list"))
+        self.assertEqual(response.status_code, 200)
+
+        plain_user = self.create_user("plain_user", role="teacher")
+        self.client.force_login(plain_user)
+        response = self.client.get(reverse("roles:role_list"))
+        self.assertEqual(response.status_code, 403)
+
+        self.assign_permission(
+            plain_user, "accounts", "manage_roles", role_name="RBAC Admin"
+        )
+        response = self.client.get(reverse("roles:role_list"))
+        self.assertEqual(response.status_code, 200)
+
 
 @override_settings(ROOT_URLCONF=__name__)
 class PermissionMixinDynamicTests(PermissionTestMixin, TestCase):
@@ -324,3 +388,21 @@ class PermissionMixinDynamicTests(PermissionTestMixin, TestCase):
 
         response = self.client.get(reverse("test_protected_cbv_dynamic"))
         self.assertEqual(response.status_code, 403)
+
+
+class PermissionMiddlewareTests(PermissionTestMixin, TestCase):
+    def test_permission_context_exposes_live_permissions_and_roles(self):
+        user = self.create_user("middleware_user", role="teacher")
+        role = Role.objects.create(name="Exam Staff")
+        role.permissions.add(self.create_permission("examinations", "view"))
+        UserRole.objects.create(user=user, role=role)
+        user.clear_permission_cache()
+
+        context = PermissionContext(user)
+
+        self.assertEqual(context.permissions, {"examinations_view"})
+        self.assertTrue(context.can("examinations", "view"))
+        self.assertFalse(context.can("students", "view"))
+        self.assertTrue(context.can_any(("examinations", "view")))
+        self.assertTrue(context.can_all(("examinations", "view")))
+        self.assertIn("Exam Staff", context.roles)
