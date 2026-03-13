@@ -1,0 +1,150 @@
+{% extends 'base.html' %}
+
+{% block title %}Examinations - School Management System{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
+    <div>
+        <h1 class="text-2xl font-bold text-gray-800">Examinations</h1>
+        <p class="text-gray-600">Manage grades, exams, and report cards</p>
+    </div>
+</div>
+
+{% if not academic_year %}
+<!-- No Academic Year Warning -->
+<div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+    <div class="flex items-center">
+        <i class="fas fa-exclamation-triangle text-yellow-500 mr-3"></i>
+        <p class="text-yellow-700">No active academic year found. Please set up an academic year first.</p>
+    </div>
+</div>
+{% else %}
+<!-- Stats Cards -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+    <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+        <div class="flex items-center">
+            <div class="p-3 bg-primary-100 rounded-lg">
+                <i class="fas fa-calendar text-2xl text-primary-600"></i>
+            </div>
+            <div class="ml-4">
+                <p class="text-sm font-medium text-gray-500">Total Schedules</p>
+                <p class="text-2xl font-bold text-gray-900">{{ total_schedules }}</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+        <div class="flex items-center">
+            <div class="p-3 bg-green-100 rounded-lg">
+                <i class="fas fa-clock text-2xl text-green-600"></i>
+            </div>
+            <div class="ml-4">
+                <p class="text-sm font-medium text-gray-500">Upcoming Exams</p>
+                <p class="text-2xl font-bold text-gray-900">{{ upcoming_exams.count }}</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+        <div class="flex items-center">
+            <div class="p-3 bg-purple-100 rounded-lg">
+                <i class="fas fa-file-alt text-2xl text-purple-600"></i>
+            </div>
+            <div class="ml-4">
+                <p class="text-sm font-medium text-gray-500">Report Cards</p>
+                <p class="text-2xl font-bold text-gray-900">-</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Links -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+    <!-- Grades -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <div class="flex items-center mb-4">
+            <div class="p-3 bg-yellow-100 rounded-lg">
+                <i class="fas fa-star text-xl text-yellow-600"></i>
+            </div>
+            <h3 class="ml-3 text-lg font-semibold text-gray-800">Grades</h3>
+        </div>
+        <p class="text-gray-600 mb-4">Enter and manage student grades for all exams.</p>
+        <a href="{% url 'examinations:grades' %}" class="inline-flex items-center text-primary-600 hover:text-primary-800">
+            Manage Grades <i class="fas fa-arrow-right ml-2"></i>
+        </a>
+    </div>
+    
+    <!-- Exam Schedule -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <div class="flex items-center mb-4">
+            <div class="p-3 bg-blue-100 rounded-lg">
+                <i class="fas fa-calendar text-xl text-blue-600"></i>
+            </div>
+            <h3 class="ml-3 text-lg font-semibold text-gray-800">Exam Schedule</h3>
+        </div>
+        <p class="text-gray-600 mb-4">Create and manage exam schedules for all classes.</p>
+        <a href="{% url 'examinations:schedule' %}" class="inline-flex items-center text-primary-600 hover:text-primary-800">
+            View Schedule <i class="fas fa-arrow-right ml-2"></i>
+        </a>
+    </div>
+    
+    <!-- Report Cards -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <div class="flex items-center mb-4">
+            <div class="p-3 bg-green-100 rounded-lg">
+                <i class="fas fa-file-contract text-xl text-green-600"></i>
+            </div>
+            <h3 class="ml-3 text-lg font-semibold text-gray-800">Report Cards</h3>
+        </div>
+        <p class="text-gray-600 mb-4">Generate and view student report cards.</p>
+        <a href="{% url 'examinations:report_card' %}" class="inline-flex items-center text-primary-600 hover:text-primary-800">
+            View Reports <i class="fas fa-arrow-right ml-2"></i>
+        </a>
+    </div>
+</div>
+
+<!-- Upcoming Exams -->
+{% if upcoming_exams %}
+<div class="bg-white rounded-xl shadow-sm border border-gray-100 mt-6">
+    <div class="p-4 border-b border-gray-200">
+        <h3 class="text-lg font-semibold text-gray-800">Upcoming Exams</h3>
+    </div>
+    <div class="overflow-x-auto">
+        <table class="w-full">
+            <thead class="bg-gray-50 border-b border-gray-200">
+                <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Exam Type</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Class</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Subject</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-200">
+                {% for exam in upcoming_exams %}
+                <tr class="hover:bg-gray-50">
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {{ exam.date|date:"d M Y" }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {{ exam.exam_type.name }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {{ exam.class_level.name }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {{ exam.subject.name }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {{ exam.start_time|time:"h:i A" }} - {{ exam.end_time|time:"h:i A" }}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+{% endif %}
+{% endblock %}

@@ -1,0 +1,45 @@
+{% extends 'base.html' %}
+
+{% block title %}My Class - Timetable{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="mb-8">
+    <h1 class="text-2xl font-bold text-gray-800">My Class</h1>
+    <p class="text-gray-600">
+        Class: {{ student.class_level.name }} - {{ student.section.name }}
+        {% if academic_year %}
+        | Academic Year: {{ academic_year.name }}
+        {% endif %}
+    </p>
+</div>
+
+<!-- Timetable -->
+<div class="bg-white rounded-xl shadow-sm border border-gray-100">
+    <div class="p-6 border-b border-gray-100">
+        <h2 class="text-lg font-semibold text-gray-800">Class Timetable</h2>
+    </div>
+    <div class="p-6">
+        {% if timetable_by_day %}
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {% for day, slots in timetable_by_day.items %}
+            <div class="border border-gray-100 rounded-lg p-4">
+                <h3 class="font-semibold text-gray-800 mb-3">{{ day }}</h3>
+                <div class="space-y-2">
+                    {% for slot in slots %}
+                    <div class="flex items-center justify-between text-sm py-2 border-b border-gray-50 last:border-0">
+                        <span class="text-gray-500 font-medium">{{ slot.period.start_time }} - {{ slot.period.end_time }}</span>
+                        <span class="font-medium text-gray-800 flex-1 px-3">{{ slot.subject.name }}</span>
+                        <span class="text-gray-500 text-xs">{{ slot.room_no|default:"-" }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="text-gray-500 text-center py-8">No timetable available for your class.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,64 @@
+{% extends 'base.html' %}
+
+{% block title %}Delete Exam Schedule - School Management System{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
+    <div>
+        <h1 class="text-2xl font-bold text-gray-800">Delete Exam Schedule</h1>
+        <p class="text-gray-600">Confirm deletion of exam schedule</p>
+    </div>
+</div>
+
+<!-- Breadcrumb -->
+<nav class="flex mb-4" aria-label="Breadcrumb">
+    <ol class="inline-flex items-center space-x-1 md:space-x-3">
+        <li class="inline-flex items-center">
+            <a href="{% url 'dashboard:index' %}" class="inline-flex items-center text-sm font-medium text-gray-700 hover:text-primary-600">
+                <i class="fas fa-home mr-2"></i>
+                Dashboard
+            </a>
+        </li>
+        <li>
+            <div class="flex items-center">
+                <i class="fas fa-chevron-right text-gray-400 mx-1"></i>
+                <a href="{% url 'examinations:schedule' %}" class="ml-1 text-sm font-medium text-gray-700 hover:text-primary-600 md:ml-2">Exam Schedule</a>
+            </div>
+        </li>
+        <li>
+            <div class="flex items-center">
+                <i class="fas fa-chevron-right text-gray-400 mx-1"></i>
+                <span class="ml-1 text-sm font-medium text-gray-500 md:ml-2">Delete</span>
+            </div>
+        </li>
+    </ol>
+</nav>
+
+<!-- Delete Confirmation -->
+<div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 max-w-lg mx-auto">
+    <div class="text-center">
+        <div class="inline-flex items-center justify-center w-16 h-16 bg-red-100 rounded-full mb-4">
+            <i class="fas fa-exclamation-triangle text-2xl text-red-600"></i>
+        </div>
+        <h3 class="text-lg font-medium text-gray-900 mb-2">Are you sure?</h3>
+        <p class="text-gray-500 mb-6">
+            You are about to delete the exam schedule for:<br>
+            <strong>{{ schedule.exam_type.name }}</strong> - <strong>{{ schedule.subject.name }}</strong><br>
+            Class: <strong>{{ schedule.class_level.name }}</strong><br>
+            Date: <strong>{{ schedule.date|date:"d M Y" }}</strong>
+        </p>
+        <p class="text-sm text-red-500 mb-6">This action cannot be undone.</p>
+        
+        <form method="POST" class="flex items-center justify-center gap-4">
+            {% csrf_token %}
+            <a href="{% url 'examinations:schedule' %}" class="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors">
+                Cancel
+            </a>
+            <button type="submit" class="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
+                <i class="fas fa-trash mr-2"></i> Delete
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock %}

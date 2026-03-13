@@ -1,0 +1,191 @@
+{% extends 'base.html' %}
+
+{% block title %}Grade Entry - School Management System{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
+    <div>
+        <h1 class="text-2xl font-bold text-gray-800">Grade Entry</h1>
+        <p class="text-gray-600">Enter marks and grades for students</p>
+    </div>
+</div>
+
+{% if not academic_year %}
+<!-- No Academic Year Warning -->
+<div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+    <div class="flex items-center">
+        <i class="fas fa-exclamation-triangle text-yellow-500 mr-3"></i>
+        <p class="text-yellow-700">No active academic year found. Please set up an academic year first.</p>
+    </div>
+</div>
+{% else %}
+<!-- Selection Form -->
+{% if not students %}
+<div class="bg-white rounded-xl shadow-sm p-4 mb-6 border border-gray-100">
+    <form method="GET" class="flex flex-col md:flex-row gap-4 items-end">
+        <div class="flex-1">
+            <label class="block text-sm font-medium text-gray-700 mb-1">Exam Type <span class="text-red-500">*</span></label>
+            <select name="exam_type" id="exam_type" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                <option value="">Select Exam Type</option>
+                {% for exam_type in exam_types %}
+                <option value="{{ exam_type.id }}" {% if request.GET.exam_type == exam_type.id|stringformat:"s" %}selected{% endif %}>
+                    {{ exam_type.name }} ({{ exam_type.weightage }}%)
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="flex-1">
+            <label class="block text-sm font-medium text-gray-700 mb-1">Class <span class="text-red-500">*</span></label>
+            <select name="class_level" id="class_level" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                <option value="">Select Class</option>
+                {% for class_level in class_levels %}
+                <option value="{{ class_level.id }}" {% if request.GET.class_level == class_level.id|stringformat:"s" %}selected{% endif %}>
+                    {{ class_level.name }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="flex-1">
+            <label class="block text-sm font-medium text-gray-700 mb-1">Subject <span class="text-red-500">*</span></label>
+            <select name="subject" id="subject" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                <option value="">Select Subject</option>
+            </select>
+        </div>
+        <button type="submit" class="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors">
+            <i class="fas fa-search mr-2"></i> Load Students
+        </button>
+    </form>
+</div>
+{% endif %}
+
+<!-- Grade Entry Form -->
+{% if students %}
+<div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+    <form method="POST">
+        {% csrf_token %}
+        <input type="hidden" name="exam_type" value="{{ selected_exam_type }}">
+        <input type="hidden" name="subject" value="{{ selected_subject }}">
+        <input type="hidden" name="class_level" value="{{ selected_class_level }}">
+        
+        <div class="p-4 bg-gray-50 border-b border-gray-200">
+            <h3 class="font-semibold text-gray-800">
+                <i class="fas fa-star mr-2"></i>
+                Enter Grades for {{ subject.name }} - {{ class_level.name }}
+            </h3>
+            <p class="text-sm text-gray-600 mt-1">
+                Exam Type: {{ selected_exam_type }} | Total Students: {{ students.count }}
+            </p>
+        </div>
+        
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead class="bg-gray-50 border-b border-gray-200">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Roll No</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Student Name</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Marks <span class="text-red-500">*</span></th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Grade</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Remarks</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                    {% for student in students %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {{ student.roll_number }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {{ student.user.get_full_name|default:student.user.username }}
+                            {% if student.grade %}
+                            <span class="ml-2 text-xs text-gray-500">(Current: {{ student.grade.marks }})</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <input type="number" name="marks_{{ student.id }}" 
+                                   value="{{ student.grade.marks|default:'' }}" 
+                                   min="0" max="100" step="0.01" required
+                                   class="w-24 px-3 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                                   placeholder="Marks">
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                            {% if student.grade %}
+                            <span class="px-2 py-1 text-xs font-semibold rounded-full 
+                                {% if student.grade.grade_letter == 'A+' or student.grade.grade_letter == 'A' or student.grade.grade_letter == 'A-' %}bg-green-100 text-green-800
+                                {% elif student.grade.grade_letter == 'B+' or student.grade.grade_letter == 'B' %}bg-blue-100 text-blue-800
+                                {% elif student.grade.grade_letter == 'B-' or student.grade.grade_letter == 'C+' or student.grade.grade_letter == 'C' %}bg-yellow-100 text-yellow-800
+                                {% else %}bg-red-100 text-red-800{% endif %}">
+                                {{ student.grade.grade_letter }}
+                            </span>
+                            {% else %}
+                            -
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <input type="text" name="remarks_{{ student.id }}" 
+                                   value="{{ student.grade.remarks|default:'' }}"
+                                   class="w-full px-3 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                                   placeholder="Optional remarks">
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <div class="p-4 bg-gray-50 border-t border-gray-200 flex justify-end gap-4">
+            <a href="{% url 'examinations:grades' %}" class="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors">
+                Cancel
+            </a>
+            <button type="submit" class="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors">
+                <i class="fas fa-save mr-2"></i> Save Grades
+            </button>
+        </div>
+    </form>
+</div>
+{% endif %}
+{% endif %}
+
+<!-- JavaScript for dynamic subject loading -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const classLevelSelect = document.getElementById('class_level');
+    const subjectSelect = document.getElementById('subject');
+
+    function loadSubjects() {
+        const classLevelId = classLevelSelect.value;
+        
+        subjectSelect.innerHTML = '<option value="">Select Subject</option>';
+        
+        if (!classLevelId) {
+            return;
+        }
+
+        fetch(`{% url 'examinations:get_subjects' %}?class_level_id=${classLevelId}`)
+            .then(response => response.json())
+            .then(data => {
+                data.subjects.forEach(subject => {
+                    const option = document.createElement('option');
+                    option.value = subject.id;
+                    option.textContent = `${subject.name} (${subject.code})`;
+                    subjectSelect.appendChild(option);
+                });
+            })
+            .catch(error => console.error('Error loading subjects:', error));
+    }
+
+    classLevelSelect.addEventListener('change', loadSubjects);
+});
+</script>
+
+<!-- Messages -->
+{% if messages %}
+<div class="fixed bottom-4 right-4 z-50">
+    {% for message in messages %}
+    <div class="bg-{% if message.tags == 'error' %}red{% else %}green{% endif %}-500 text-white px-6 py-3 rounded-lg shadow-lg mb-2" role="alert">
+        {{ message }}
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

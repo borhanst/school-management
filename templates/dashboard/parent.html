@@ -1,0 +1,104 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard - Parent{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="mb-8">
+    <h1 class="text-2xl font-bold text-gray-800">Parent Dashboard</h1>
+    <p class="text-gray-600">Welcome back, {{ user.get_full_name }}!</p>
+</div>
+
+<!-- Parent Info Card -->
+{% if parent %}
+<div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100 mb-8">
+    <div class="flex items-center justify-between">
+        <div>
+            <h2 class="text-lg font-semibold text-gray-800">{{ parent.user.get_full_name }}</h2>
+            <p class="text-gray-600">Children: {{ children_data|length }}</p>
+            {% if academic_year %}
+            <p class="text-gray-500 text-sm">Academic Year: {{ academic_year.name }}</p>
+            {% endif %}
+        </div>
+        <div class="w-14 h-14 bg-pink-100 rounded-xl flex items-center justify-center">
+            <i class="fas fa-user-friends text-2xl text-pink-600"></i>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Children List -->
+{% if children_data %}
+{% for child_data in children_data %}
+<div class="bg-white rounded-xl shadow-sm border border-gray-100 mb-8">
+    <div class="p-6 border-b border-gray-100">
+        <h2 class="text-lg font-semibold text-gray-800">
+            <i class="fas fa-child mr-2"></i>{{ child_data.student.user.get_full_name }}
+        </h2>
+        <p class="text-gray-600 text-sm">
+            Class: {{ child_data.student.class_level.name }} - {{ child_data.student.section.name }} | 
+            Roll: {{ child_data.student.roll_number }}
+        </p>
+    </div>
+    
+    <!-- Stats Grid for Child -->
+    <div class="p-6">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+            <!-- Attendance -->
+            <div class="bg-gray-50 rounded-lg p-4">
+                <p class="text-sm text-gray-500">Attendance</p>
+                <p class="text-2xl font-bold text-gray-800">{{ child_data.attendance }}%</p>
+            </div>
+            
+            <!-- Grades Count -->
+            <div class="bg-gray-50 rounded-lg p-4">
+                <p class="text-sm text-gray-500">Grades Recorded</p>
+                <p class="text-2xl font-bold text-gray-800">{{ child_data.grades.count }}</p>
+            </div>
+            
+            <!-- Status -->
+            <div class="bg-gray-50 rounded-lg p-4">
+                <p class="text-sm text-gray-500">Status</p>
+                <p class="text-2xl font-bold 
+                    {% if child_data.student.status == 'studying' %}text-green-600
+                    {% else %}text-gray-600{% endif %}">
+                    {{ child_data.student.get_status_display }}
+                </p>
+            </div>
+        </div>
+        
+        <!-- Recent Grades -->
+        {% if child_data.grades %}
+        <h3 class="text-md font-semibold text-gray-800 mb-3">Recent Grades</h3>
+        <div class="overflow-x-auto mb-6">
+            <table class="w-full">
+                <thead>
+                    <tr class="text-left">
+                        <th class="pb-2 text-sm font-medium text-gray-500">Subject</th>
+                        <th class="pb-2 text-sm font-medium text-gray-500">Exam Type</th>
+                        <th class="pb-2 text-sm font-medium text-gray-500">Marks</th>
+                        <th class="pb-2 text-sm font-medium text-gray-500">Grade</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for grade in child_data.grades %}
+                    <tr class="border-t border-gray-100">
+                        <td class="py-2">{{ grade.subject.name }}</td>
+                        <td class="py-2">{{ grade.exam_type.name }}</td>
+                        <td class="py-2">{{ grade.marks }}</td>
+                        <td class="py-2">{{ grade.grade }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endfor %}
+{% else %}
+<div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+    <p class="text-gray-500 text-center">No children found linked to your account.</p>
+</div>
+{% endif %}
+{% endblock %}

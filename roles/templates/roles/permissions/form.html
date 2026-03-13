@@ -1,0 +1,64 @@
+{% extends 'roles/base.html' %}
+
+{% block role_content %}
+<div class="max-w-2xl">
+    <div class="mb-6">
+        <h2 class="text-xl font-semibold text-gray-800">{{ object|yesno:"Edit Permission,Create Permission" }}</h2>
+    </div>
+
+    <form method="post" class="bg-white shadow-sm rounded-lg border border-gray-200 p-6">
+        {% csrf_token %}
+        
+        <div class="space-y-6">
+            <div>
+                <label for="id_module" class="block text-sm font-medium text-gray-700">Module</label>
+                <select name="module" id="id_module" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm px-3 py-2 border">
+                    {% for module in modules %}
+                    <option value="{{ module.id }}" {% if form.module.value == module.id %}selected{% endif %}>
+                        {{ module.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+                {% if form.module.errors %}
+                <p class="mt-1 text-sm text-red-600">{{ form.module.errors.0 }}</p>
+                {% endif %}
+            </div>
+
+            <div>
+                <label for="id_name" class="block text-sm font-medium text-gray-700">Permission Name</label>
+                <input type="text" name="name" id="id_name" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm px-3 py-2 border" value="{{ form.name.value|default:'' }}" placeholder="e.g., View">
+                {% if form.name.errors %}
+                <p class="mt-1 text-sm text-red-600">{{ form.name.errors.0 }}</p>
+                {% endif %}
+                <p class="mt-1 text-xs text-gray-500">Display name (e.g., 'View', 'Create', 'Edit', 'Delete')</p>
+            </div>
+
+            <div>
+                <label for="id_codename" class="block text-sm font-medium text-gray-700">Code Name</label>
+                <input type="text" name="codename" id="id_codename" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm px-3 py-2 border" value="{{ form.codename.value|default:'' }}" placeholder="e.g., view">
+                {% if form.codename.errors %}
+                <p class="mt-1 text-sm text-red-600">{{ form.codename.errors.0 }}</p>
+                {% endif %}
+                <p class="mt-1 text-xs text-gray-500">Code name (e.g., 'view', 'create', 'edit', 'delete') - auto-generated if empty</p>
+            </div>
+
+            <div>
+                <label for="id_description" class="block text-sm font-medium text-gray-700">Description</label>
+                <textarea name="description" id="id_description" rows="2" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm px-3 py-2 border">{{ form.description.value|default:'' }}</textarea>
+            </div>
+
+            <div>
+                <label for="id_order" class="block text-sm font-medium text-gray-700">Display Order</label>
+                <input type="number" name="order" id="id_order" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm px-3 py-2 border" value="{{ form.order.value|default:'0' }}">
+            </div>
+        </div>
+
+        <div class="mt-6 flex justify-end gap-3">
+            <a href="{% url 'roles:permission_list' %}" class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">Cancel</a>
+            <button type="submit" class="px-4 py-2 bg-primary-600 border border-transparent rounded-md text-sm font-medium text-white hover:bg-primary-700">
+                {{ object|yesno:"Update,Create" }}
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}

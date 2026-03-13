@@ -1,0 +1,116 @@
+{% extends 'roles/base.html' %}
+
+{% block role_content %}
+<div class="max-w-4xl">
+    <div class="mb-6">
+        <h2 class="text-xl font-semibold text-gray-800">{{ object|yesno:"Edit Role,Create Role" }}</h2>
+    </div>
+
+    <form method="post" class="bg-white shadow-sm rounded-lg border border-gray-200 p-6">
+        {% csrf_token %}
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <div>
+                <label for="id_name" class="block text-sm font-medium text-gray-700">Role Name</label>
+                <input type="text" name="name" id="id_name" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm px-3 py-2 border" value="{{ form.name.value|default:'' }}">
+                {% if form.name.errors %}
+                <p class="mt-1 text-sm text-red-600">{{ form.name.errors.0 }}</p>
+                {% endif %}
+            </div>
+
+            <div>
+                <label for="id_priority" class="block text-sm font-medium text-gray-700">Priority</label>
+                <input type="number" name="priority" id="id_priority" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm px-3 py-2 border" value="{{ form.priority.value|default:'0' }}">
+                <p class="mt-1 text-xs text-gray-500">Higher priority roles take precedence</p>
+            </div>
+
+            <div class="md:col-span-2">
+                <label for="id_description" class="block text-sm font-medium text-gray-700">Description</label>
+                <textarea name="description" id="id_description" rows="2" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm px-3 py-2 border">{{ form.description.value|default:'' }}</textarea>
+            </div>
+
+            <div>
+                <div class="flex items-center">
+                    <input type="checkbox" name="is_active" id="id_is_active" class="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded" {% if form.is_active.value %}checked{% endif %}>
+                    <label for="id_is_active" class="ml-2 block text-sm text-gray-900">Active</label>
+                </div>
+            </div>
+
+            <div>
+                <div class="flex items-center">
+                    <input type="checkbox" name="is_default" id="id_is_default" class="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded" {% if form.is_default.value %}checked{% endif %}>
+                    <label for="id_is_default" class="ml-2 block text-sm text-gray-900">Default role for new users</label>
+                </div>
+            </div>
+        </div>
+
+        <!-- Permissions Section -->
+        <div class="border-t border-gray-200 pt-6">
+            <h3 class="text-lg font-medium text-gray-900 mb-4">Permissions</h3>
+            
+            {% if permissions_by_module %}
+            <div class="space-y-6">
+                {% for module_name, permissions in permissions_by_module.items %}
+                <div class="bg-gray-50 rounded-lg p-4">
+                    <div class="flex items-center justify-between mb-3">
+                        <h4 class="text-sm font-semibold text-gray-900">{{ module_name }}</h4>
+                        <div class="flex items-center gap-2">
+                            <input type="checkbox" id="select_all_{{ forloop.counter }}" class="select-all-permissions" data-group="{{ forloop.counter }}">
+                            <label for="select_all_{{ forloop.counter }}" class="text-xs text-gray-500">Select All</label>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                        {% for perm in permissions %}
+                        <div class="flex items-start">
+                            <input type="checkbox" 
+                                   name="permissions" 
+                                   value="{{ perm.id }}" 
+                                   id="perm_{{ perm.id }}"
+                                   class="permission-checkbox mt-1 h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+                                   data-group="{{ forloop.parentloop.counter }}"
+                                   {% if role_permissions and perm.id in role_permissions %}checked{% endif %}>
+                            <label for="perm_{{ perm.id }}" class="ml-2 block text-sm text-gray-700">
+                                {{ perm.permission_type.name }}
+                            </label>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="bg-yellow-50 border border-yellow-200 rounded-md p-4">
+                <p class="text-sm text-yellow-700">
+                    No modules with permissions found. 
+                    <a href="{% url 'roles:module_create' %}" class="underline">Create a module</a> first.
+                </p>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="mt-6 flex justify-end gap-3">
+            <a href="{% url 'roles:role_list' %}" class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">Cancel</a>
+            <button type="submit" class="px-4 py-2 bg-primary-600 border border-transparent rounded-md text-sm font-medium text-white hover:bg-primary-700">
+                {{ object|yesno:"Update,Create" }}
+            </button>
+        </div>
+    </form>
+</div>
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Select all functionality
+    document.querySelectorAll('.select-all-permissions').forEach(function(checkbox) {
+        checkbox.addEventListener('change', function() {
+            const group = this.getAttribute('data-group');
+            const checked = this.checked;
+            document.querySelectorAll('.permission-checkbox[data-group="' + group + '"]').forEach(function(perm) {
+                perm.checked = checked;
+            });
+        });
+    });
+});
+</script>
+{% endblock %}
+{% endblock %}

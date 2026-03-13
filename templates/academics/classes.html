@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block title %}Classes - School Management{% endblock %}
+
+{% block content %}
+<div class="p-6">
+    <h1 class="text-2xl font-bold text-gray-800 mb-6">Classes</h1>
+    
+    <div class="grid gap-6">
+        {% for level in class_levels %}
+        <div class="bg-white rounded-lg shadow p-6">
+            <h2 class="text-xl font-semibold text-gray-700 mb-4">{{ level.name }}</h2>
+            
+            {% if level.sections.exists %}
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {% for section in level.sections.all %}
+                <div class="border rounded-lg p-4 hover:shadow-md transition-shadow">
+                    <div class="flex items-center justify-between">
+                        <h3 class="font-medium text-gray-800">{{ section.name }}</h3>
+                        <span class="text-sm text-gray-500">{{ section.students.count }} students</span>
+                    </div>
+                    {% if section.class_teacher %}
+                    <p class="text-sm text-gray-600 mt-2">
+                        <i class="fas fa-user-tteacher w-4"></i>
+                        Class Teacher: {{ section.class_teacher.user.get_full_name }}
+                    </p>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="text-gray-500">No sections available for this class level.</p>
+            {% endif %}
+        </div>
+        {% empty %}
+        <div class="bg-white rounded-lg shadow p-6">
+            <p class="text-gray-500">No class levels found. Please add class levels in the system.</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,229 @@
+{% extends 'base.html' %}
+
+{% block title %}Register - School Management System{% endblock %}
+
+{% block guest_content %}
+<div class="min-h-screen flex">
+    <!-- Left Side - Form -->
+    <div class="flex-1 flex items-center justify-center px-4 sm:px-6 lg:px-8 bg-white">
+        <div class="max-w-md w-full space-y-8">
+            <!-- Logo -->
+            <div class="text-center">
+                <div class="w-16 h-16 bg-primary-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-graduation-cap text-3xl text-white"></i>
+                </div>
+                <h2 class="text-3xl font-bold text-gray-900">Create Account</h2>
+                <p class="mt-2 text-gray-600">Register for School Management System</p>
+            </div>
+            
+            <!-- Registration Form -->
+            <form method="POST" class="mt-8 space-y-6">
+                {% csrf_token %}
+                
+                {% if form.errors %}
+                <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+                    <p class="font-medium">Please correct the errors below.</p>
+                    {% for field in form %}
+                        {% for error in field.errors %}
+                            <p class="text-sm">{{ field.label }}: {{ error }}</p>
+                        {% endfor %}
+                    {% endfor %}
+                    {% for error in form.non_field_errors %}
+                        <p class="text-sm">{{ error }}</p>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                
+                <div class="space-y-4">
+                    <!-- Username -->
+                    <div>
+                        <label for="id_username" class="block text-sm font-medium text-gray-700 mb-1">Username</label>
+                        {{ form.username }}
+                        {% if form.username.errors %}
+                        <p class="mt-1 text-sm text-red-600">{{ form.username.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Email -->
+                    <div>
+                        <label for="id_email" class="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
+                        {{ form.email }}
+                        {% if form.email.errors %}
+                        <p class="mt-1 text-sm text-red-600">{{ form.email.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- First Name & Last Name -->
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label for="id_first_name" class="block text-sm font-medium text-gray-700 mb-1">First Name</label>
+                            {{ form.first_name }}
+                            {% if form.first_name.errors %}
+                            <p class="mt-1 text-sm text-red-600">{{ form.first_name.errors.0 }}</p>
+                            {% endif %}
+                        </div>
+                        <div>
+                            <label for="id_last_name" class="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
+                            {{ form.last_name }}
+                            {% if form.last_name.errors %}
+                            <p class="mt-1 text-sm text-red-600">{{ form.last_name.errors.0 }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <!-- Role -->
+                    <div>
+                        <label for="id_role" class="block text-sm font-medium text-gray-700 mb-1">Register As</label>
+                        {{ form.role }}
+                        {% if form.role.errors %}
+                        <p class="mt-1 text-sm text-red-600">{{ form.role.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Phone -->
+                    <div>
+                        <label for="id_phone" class="block text-sm font-medium text-gray-700 mb-1">Phone Number (Optional)</label>
+                        {{ form.phone }}
+                        {% if form.phone.errors %}
+                        <p class="mt-1 text-sm text-red-600">{{ form.phone.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Password -->
+                    <div>
+                        <label for="id_password1" class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                        <div class="relative">
+                            {{ form.password1 }}
+                            <button type="button" onclick="togglePassword('id_password1', 'togglePassword1')" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700">
+                                <i id="togglePassword1" class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                        <button type="button" onclick="generatePassword('id_password1')" class="text-sm text-primary-600 hover:text-primary-700 underline mt-1">
+                            Generate Strong Password
+                        </button>
+                        {% if form.password1.errors %}
+                        <p class="mt-1 text-sm text-red-600">{{ form.password1.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Confirm Password -->
+                    <div>
+                        <label for="id_password2" class="block text-sm font-medium text-gray-700 mb-1">Confirm Password</label>
+                        <div class="relative">
+                            {{ form.password2 }}
+                            <button type="button" onclick="togglePassword('id_password2', 'togglePassword2')" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700">
+                                <i id="togglePassword2" class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                        {% if form.password2.errors %}
+                        <p class="mt-1 text-sm text-red-600">{{ form.password2.errors.0 }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="flex items-center">
+                    <input type="checkbox" name="terms" id="terms" required
+                           class="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded">
+                    <label for="terms" class="ml-2 block text-sm text-gray-700">
+                        I agree to the <a href="#" class="text-primary-600 hover:text-primary-500">Terms of Service</a> and <a href="#" class="text-primary-600 hover:text-primary-500">Privacy Policy</a>
+                    </label>
+                </div>
+                
+                <button type="submit" 
+                        class="w-full bg-primary-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 transition-colors">
+                    Create Account
+                </button>
+            </form>
+            
+            <!-- Login Link -->
+            <p class="text-center text-gray-600">
+                Already have an account?
+                <a href="{% url 'accounts:login' %}" class="text-primary-600 hover:text-primary-500 font-medium">
+                    Sign in
+                </a>
+            </p>
+        </div>
+    </div>
+    
+    <!-- Right Side - Image -->
+    <div class="hidden lg:flex lg:flex-1 bg-gradient-to-br from-primary-600 to-primary-800 items-center justify-center p-12">
+        <div class="max-w-lg text-center text-white">
+            <i class="fas fa-school text-8xl mb-6 opacity-90"></i>
+            <h2 class="text-4xl font-bold mb-4">School Management System</h2>
+            <p class="text-lg opacity-90">Join our comprehensive platform to manage your school efficiently. Track attendance, grades, fees, and more.</p>
+            
+            <div class="mt-8 grid grid-cols-3 gap-4">
+                <div class="bg-white/10 rounded-lg p-4">
+                    <i class="fas fa-user-graduate text-2xl mb-2"></i>
+                    <p class="text-sm">Students</p>
+                </div>
+                <div class="bg-white/10 rounded-lg p-4">
+                    <i class="fas fa-chalkboard-teacher text-2xl mb-2"></i>
+                    <p class="text-sm">Teachers</p>
+                </div>
+                <div class="bg-white/10 rounded-lg p-4">
+                    <i class="fas fa-book-reader text-2xl mb-2"></i>
+                    <p class="text-sm">Library</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function togglePassword(inputId, iconId) {
+    const input = document.getElementById(inputId);
+    const icon = document.getElementById(iconId);
+    
+    if (input.type === 'password') {
+        input.type = 'text';
+        icon.classList.remove('fa-eye');
+        icon.classList.add('fa-eye-slash');
+    } else {
+        input.type = 'password';
+        icon.classList.remove('fa-eye-slash');
+        icon.classList.add('fa-eye');
+    }
+}
+
+function generatePassword(inputId) {
+    const length = 12;
+    const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+-=[]{}|;:,<>?";
+    let password = "";
+    
+    // Ensure at least one of each type
+    password += "ABCDEFGHIJKLMNOPQRSTUVWXYZ"[Math.floor(Math.random() * 26)]; // uppercase
+    password += "abcdefghijklmnopqrstuvwxyz"[Math.floor(Math.random() * 26)]; // lowercase
+    password += "0123456789"[Math.floor(Math.random() * 10)]; // number
+    password += "!@#$%^&*()_+-=[]{}|;:,<>?"[Math.floor(Math.random() * 20)]; // special
+    
+    // Fill the rest randomly
+    for (let i = 4; i < length; i++) {
+        password += charset[Math.floor(Math.random() * charset.length)];
+    }
+    
+    // Shuffle the password
+    password = password.split('').sort(() => Math.random() - 0.5).join('');
+    
+    const input = document.getElementById(inputId);
+    input.value = password;
+    
+    // If password is hidden, show it briefly
+    if (input.type === 'password') {
+        input.type = 'text';
+        const icon = document.getElementById('togglePassword1');
+        if (icon) {
+            icon.classList.remove('fa-eye');
+            icon.classList.add('fa-eye-slash');
+        }
+        setTimeout(() => {
+            input.type = 'password';
+            if (icon) {
+                icon.classList.remove('fa-eye-slash');
+                icon.classList.add('fa-eye');
+            }
+        }, 2000);
+    }
+}
+</script>
+{% endblock %}

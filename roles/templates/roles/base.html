@@ -1,0 +1,45 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Role Management{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="mb-6">
+        <h1 class="text-3xl font-bold text-gray-800">Role & Permission Management</h1>
+        <p class="text-gray-600 mt-2">Manage roles, permissions, and user assignments</p>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div class="mb-6 border-b border-gray-200">
+        <nav class="-mb-px flex space-x-8" x-data="{ activeTab: '{{ request.resolver_match.url_name }}' }">
+            <a href="{% url 'roles:module_list' %}" 
+               class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200"
+               :class="activeTab === 'module_list' || activeTab.startsWith('module_') ? 'border-primary-500 text-primary-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+               @click="activeTab = 'module_list'">
+                Modules
+            </a>
+            <a href="{% url 'roles:role_list' %}" 
+               class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200"
+               :class="activeTab === 'role_list' || activeTab.startsWith('role_') ? 'border-primary-500 text-primary-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+               @click="activeTab = 'role_list'">
+                Roles
+            </a>
+            <a href="{% url 'roles:permission_list' %}" 
+               class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200"
+               :class="activeTab === 'permission_list' ? 'border-primary-500 text-primary-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+               @click="activeTab = 'permission_list'">
+                Permissions
+            </a>
+            <a href="{% url 'roles:assignment_list' %}" 
+               class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200"
+               :class="activeTab === 'assignment_list' || activeTab.startsWith('assign') ? 'border-primary-500 text-primary-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+               @click="activeTab = 'assignment_list'">
+                User Assignments
+            </a>
+        </nav>
+    </div>
+
+    {% block role_content %}{% endblock %}
+</div>
+{% endblock %}

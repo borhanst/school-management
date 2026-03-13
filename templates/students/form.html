@@ -1,0 +1,175 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if student %}Edit Student{% else %}Add Student{% endif %} - School Management System{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="mb-6">
+    <h1 class="text-2xl font-bold text-gray-800">{% if student %}Edit Student{% else %}Add New Student{% endif %}</h1>
+    <p class="text-gray-600">{% if student %}Update student information{% else %}Enter student details{% endif %}</p>
+</div>
+
+<!-- Form -->
+<div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+    <form method="POST" class="space-y-6">
+        {% csrf_token %}
+        
+        <!-- Personal Information -->
+        <div>
+            <h3 class="text-lg font-semibold text-gray-800 mb-4">Personal Information</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">First Name *</label>
+                    <input type="text" name="first_name" value="{{ student.user.first_name|default:'' }}" required
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Last Name *</label>
+                    <input type="text" name="last_name" value="{{ student.user.last_name|default:'' }}" required
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                    <input type="email" name="email" value="{{ student.user.email|default:'' }}"
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                    <input type="text" name="phone" value="{{ student.user.phone|default:'' }}"
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Date of Birth *</label>
+                    <input type="date" name="date_of_birth" value="{{ student.date_of_birth|default:''|date:'Y-m-d' }}" required
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Gender *</label>
+                    <select name="gender" required
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                        <option value="">Select Gender</option>
+                        <option value="male" {% if student.gender == 'male' %}selected{% endif %}>Male</option>
+                        <option value="female" {% if student.gender == 'female' %}selected{% endif %}>Female</option>
+                        <option value="other" {% if student.gender == 'other' %}selected{% endif %}>Other</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Blood Group</label>
+                    <select name="blood_group"
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                        <option value="">Select</option>
+                        <option value="A+" {% if student.blood_group == 'A+' %}selected{% endif %}>A+</option>
+                        <option value="A-" {% if student.blood_group == 'A-' %}selected{% endif %}>A-</option>
+                        <option value="B+" {% if student.blood_group == 'B+' %}selected{% endif %}>B+</option>
+                        <option value="B-" {% if student.blood_group == 'B-' %}selected{% endif %}>B-</option>
+                        <option value="O+" {% if student.blood_group == 'O+' %}selected{% endif %}>O+</option>
+                        <option value="O-" {% if student.blood_group == 'O-' %}selected{% endif %}>O-</option>
+                        <option value="AB+" {% if student.blood_group == 'AB+' %}selected{% endif %}>AB+</option>
+                        <option value="AB-" {% if student.blood_group == 'AB-' %}selected{% endif %}>AB-</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Religion</label>
+                    <select name="religion"
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                        <option value="">Select</option>
+                        <option value="islam" {% if student.religion == 'islam' %}selected{% endif %}>Islam</option>
+                        <option value="hinduism" {% if student.religion == 'hinduism' %}selected{% endif %}>Hinduism</option>
+                        <option value="christianity" {% if student.religion == 'christianity' %}selected{% endif %}>Christianity</option>
+                        <option value="buddhism" {% if student.religion == 'buddhism' %}selected{% endif %}>Buddhism</option>
+                        <option value="other" {% if student.religion == 'other' %}selected{% endif %}>Other</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Aadhar Number</label>
+                    <input type="text" name="aadhar_no" value="{{ student.aadhar_no|default:'' }}"
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                </div>
+            </div>
+        </div>
+        
+        <!-- Academic Information -->
+        <div>
+            <h3 class="text-lg font-semibold text-gray-800 mb-4">Academic Information</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Admission Date *</label>
+                    <input type="date" name="admission_date" value="{{ student.admission_date|default:''|date:'Y-m-d' }}" required
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Class *</label>
+                    <select name="class_level" required
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                        <option value="">Select Class</option>
+                        {% for class in classes %}
+                        <option value="{{ class.id }}" {% if student.class_level_id == class.id %}selected{% endif %}>
+                            {{ class.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Section</label>
+                    <select name="section"
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                        <option value="">Select Section</option>
+                        {% for section in sections %}
+                        <option value="{{ section.id }}" {% if student.section_id == section.id %}selected{% endif %}>
+                            {{ section.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Roll Number</label>
+                    <input type="number" name="roll_number" value="{{ student.roll_number|default:'' }}"
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Academic Year *</label>
+                    <select name="academic_year" required
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                        <option value="">Select Year</option>
+                        {% for year in academic_years %}
+                        <option value="{{ year.id }}">{{ year.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">House</label>
+                    <input type="text" name="house" value="{{ student.house|default:'' }}"
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                </div>
+            </div>
+        </div>
+        
+        <!-- Previous School -->
+        <div>
+            <h3 class="text-lg font-semibold text-gray-800 mb-4">Previous School (if any)</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">School Name</label>
+                    <input type="text" name="previous_school" value="{{ student.previous_school|default:'' }}"
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">TC Number</label>
+                    <input type="text" name="tc_no" value="{{ student.tc_no|default:'' }}"
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                </div>
+            </div>
+        </div>
+        
+        <!-- Submit -->
+        <div class="flex justify-end space-x-3 pt-4 border-t border-gray-100">
+            <a href="{% url 'students:list' %}" class="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50">
+                Cancel
+            </a>
+            <button type="submit" class="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700">
+                {% if student %}Update Student{% else %}Add Student{% endif %}
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}

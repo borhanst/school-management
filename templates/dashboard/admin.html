@@ -1,0 +1,168 @@
+{% extends 'base.html' %}
+{% load math_filters %}
+
+{% block title %}Dashboard - Admin{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="mb-8">
+    <h1 class="text-2xl font-bold text-gray-800">Dashboard</h1>
+    <p class="text-gray-600">Welcome back, {{ user.get_full_name }}!</p>
+</div>
+
+<!-- Stats Grid -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+    <!-- Total Students -->
+    <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-sm text-gray-500">Total Students</p>
+                <p class="text-3xl font-bold text-gray-800">{{ total_students }}</p>
+                <p class="text-xs text-green-600 mt-1">
+                    <i class="fas fa-arrow-up"></i> {{ new_students_today }} new today
+                </p>
+            </div>
+            <div class="w-14 h-14 bg-blue-100 rounded-xl flex items-center justify-center">
+                <i class="fas fa-user-graduate text-2xl text-blue-600"></i>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Today's Attendance -->
+    <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-sm text-gray-500">Today's Attendance</p>
+                <p class="text-3xl font-bold text-gray-800">{{ attendance_percentage }}%</p>
+                <p class="text-xs text-gray-500 mt-1">{{ total_present }} present</p>
+            </div>
+            <div class="w-14 h-14 bg-green-100 rounded-xl flex items-center justify-center">
+                <i class="fas fa-calendar-check text-2xl text-green-600"></i>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Fee Collection -->
+    <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-sm text-gray-500">Fee Collection</p>
+                <p class="text-3xl font-bold text-gray-800">${{ total_fee_paid|default:0 }}</p>
+                <p class="text-xs text-gray-500 mt-1">{{ fee_collection_percentage }}% collected</p>
+            </div>
+            <div class="w-14 h-14 bg-yellow-100 rounded-xl flex items-center justify-center">
+                <i class="fas fa-dollar-sign text-2xl text-yellow-600"></i>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Library -->
+    <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-sm text-gray-500">Books Issued</p>
+                <p class="text-3xl font-bold text-gray-800">{{ books_issued }}</p>
+                <p class="text-xs text-red-600 mt-1">
+                    <i class="fas fa-exclamation-circle"></i> {{ overdue_books }} overdue
+                </p>
+            </div>
+            <div class="w-14 h-14 bg-purple-100 rounded-xl flex items-center justify-center">
+                <i class="fas fa-book-reader text-2xl text-purple-600"></i>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Main Content Grid -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <!-- Class-wise Students -->
+    <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+        <h2 class="text-lg font-semibold text-gray-800 mb-4">Students by Class</h2>
+        <div class="space-y-3">
+            {% for class in class_counts %}
+            <div class="flex items-center justify-between">
+                <span class="text-gray-600">{{ class.name }}</span>
+                <div class="flex items-center">
+                    <div class="w-32 h-2 bg-gray-200 rounded-full mr-3">
+                        <div class="h-2 bg-primary-500 rounded-full" style="width: {{ class.student_count|default:0|mul:100|div:total_students }}%"></div>
+                    </div>
+                    <span class="text-sm font-medium text-gray-800">{{ class.student_count|default:0 }}</span>
+                </div>
+            </div>
+            {% empty %}
+            <p class="text-gray-500 text-sm">No data available</p>
+            {% endfor %}
+        </div>
+    </div>
+    
+    <!-- Recent Payments -->
+    <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100 lg:col-span-2">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-semibold text-gray-800">Recent Fee Payments</h2>
+            <a href="{% url 'fees:list' %}" class="text-sm text-primary-600 hover:text-primary-500">View All</a>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead>
+                    <tr class="text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th class="pb-3">Student</th>
+                        <th class="pb-3">Amount</th>
+                        <th class="pb-3">Date</th>
+                        <th class="pb-3">Mode</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    {% for payment in recent_payments %}
+                    <tr>
+                        <td class="py-3">
+                            <p class="text-sm font-medium text-gray-800">{{ payment.invoice.student.user.get_full_name }}</p>
+                            <p class="text-xs text-gray-500">{{ payment.invoice.student.admission_no }}</p>
+                        </td>
+                        <td class="py-3 text-sm text-green-600 font-medium">${{ payment.amount }}</td>
+                        <td class="py-3 text-sm text-gray-600">{{ payment.payment_date }}</td>
+                        <td class="py-3">
+                            <span class="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded">{{ payment.get_payment_mode_display }}</span>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="4" class="py-4 text-center text-gray-500">No recent payments</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="mt-8">
+    <h2 class="text-lg font-semibold text-gray-800 mb-4">Quick Actions</h2>
+    <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+        <a href="{% url 'students:add' %}" class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 text-center hover:shadow-md transition-shadow">
+            <i class="fas fa-user-plus text-2xl text-primary-600 mb-2"></i>
+            <p class="text-sm font-medium text-gray-700">Add Student</p>
+        </a>
+        <a href="{% url 'accounts:teacher_add' %}" class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 text-center hover:shadow-md transition-shadow">
+            <i class="fas fa-chalkboard-teacher text-2xl text-green-600 mb-2"></i>
+            <p class="text-sm font-medium text-gray-700">Add Teacher</p>
+        </a>
+        <a href="{% url 'attendance:mark' %}" class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 text-center hover:shadow-md transition-shadow">
+            <i class="fas fa-clipboard-check text-2xl text-blue-600 mb-2"></i>
+            <p class="text-sm font-medium text-gray-700">Mark Attendance</p>
+        </a>
+        <a href="{% url 'fees:create_invoice' %}" class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 text-center hover:shadow-md transition-shadow">
+            <i class="fas fa-file-invoice-dollar text-2xl text-yellow-600 mb-2"></i>
+            <p class="text-sm font-medium text-gray-700">Create Invoice</p>
+        </a>
+        <a href="{% url 'library:issue_book' %}" class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 text-center hover:shadow-md transition-shadow">
+            <i class="fas fa-book text-2xl text-purple-600 mb-2"></i>
+            <p class="text-sm font-medium text-gray-700">Issue Book</p>
+        </a>
+        <a href="{% url 'communications:notices' %}" class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 text-center hover:shadow-md transition-shadow">
+            <i class="fas fa-bullhorn text-2xl text-red-600 mb-2"></i>
+            <p class="text-sm font-medium text-gray-700">Post Notice</p>
+        </a>
+    </div>
+</div>
+{% endblock %}

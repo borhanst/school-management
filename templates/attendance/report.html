@@ -1,0 +1,150 @@
+{% extends 'base.html' %}
+
+{% block title %}Attendance Report - School Management System{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
+    <div>
+        <h1 class="text-2xl font-bold text-gray-800">Attendance Report</h1>
+        <p class="text-gray-600">View and analyze student attendance</p>
+    </div>
+    <div class="mt-4 md:mt-0">
+        <a href="{% url 'attendance:mark' %}" class="inline-flex items-center px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors">
+            <i class="fas fa-plus mr-2"></i> Mark Attendance
+        </a>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="bg-white rounded-xl shadow-sm p-4 mb-6 border border-gray-100">
+    <form method="GET" class="flex flex-col md:flex-row gap-4">
+        <div class="w-full md:w-48">
+            <select name="class" id="class-filter" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500">
+                <option value="">All Classes</option>
+                {% for cls in classes %}
+                <option value="{{ cls.id }}" {% if selected_class == cls.id|stringformat:"s" %}selected{% endif %}>
+                    {{ cls.name }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="w-full md:w-48">
+            <select name="section" id="section-filter" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500">
+                <option value="">All Sections</option>
+                {% for section in sections %}
+                <option value="{{ section.id }}" {% if selected_section == section.id|stringformat:"s" %}selected{% endif %}>
+                    {{ section.class_level.name }} - {{ section.name }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="w-full md:w-48">
+            <input type="date" name="date_from" value="{{ date_from|default:'' }}" placeholder="From Date"
+                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500">
+        </div>
+        <div class="w-full md:w-48">
+            <input type="date" name="date_to" value="{{ date_to|default:'' }}" placeholder="To Date"
+                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500">
+        </div>
+        <button type="submit" class="px-6 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-900 transition-colors">
+            <i class="fas fa-filter mr-2"></i> Filter
+        </button>
+    </form>
+</div>
+
+{% if stats %}
+<!-- Statistics -->
+<div class="grid grid-cols-2 md:grid-cols-6 gap-4 mb-6">
+    <div class="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+        <p class="text-sm text-gray-500">Total Records</p>
+        <p class="text-2xl font-bold text-gray-800">{{ stats.total }}</p>
+    </div>
+    <div class="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+        <p class="text-sm text-gray-500">Present</p>
+        <p class="text-2xl font-bold text-green-600">{{ stats.present }}</p>
+    </div>
+    <div class="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+        <p class="text-sm text-gray-500">Absent</p>
+        <p class="text-2xl font-bold text-red-600">{{ stats.absent }}</p>
+    </div>
+    <div class="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+        <p class="text-sm text-gray-500">Late</p>
+        <p class="text-2xl font-bold text-yellow-600">{{ stats.late }}</p>
+    </div>
+    <div class="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+        <p class="text-sm text-gray-500">On Leave</p>
+        <p class="text-2xl font-bold text-blue-600">{{ stats.leave }}</p>
+    </div>
+    <div class="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+        <p class="text-sm text-gray-500">Attendance %</p>
+        <p class="text-2xl font-bold text-primary-600">{{ stats.present_percent|default:0 }}%</p>
+    </div>
+</div>
+{% endif %}
+
+<!-- Attendance Table -->
+<div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+    <div class="overflow-x-auto">
+        <table class="w-full">
+            <thead class="bg-gray-50 border-b border-gray-200">
+                <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Student</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Class</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Roll No</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Period</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Remarks</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
+                {% for attendance in attendances %}
+                <tr class="hover:bg-gray-50">
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {{ attendance.date|date:"d M Y" }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="flex items-center">
+                            <div class="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center text-primary-600 text-xs font-medium">
+                                {{ attendance.student.user.first_name.0|upper }}{{ attendance.student.user.last_name.0|upper }}
+                            </div>
+                            <span class="ml-3 text-sm font-medium text-gray-900">{{ attendance.student.user.get_full_name }}</span>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {{ attendance.student.class_level.name }} - {{ attendance.student.section.name|default:"" }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {{ attendance.student.roll_number|default:"-" }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        {% if attendance.status == 'present' %}
+                        <span class="px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded-full">Present</span>
+                        {% elif attendance.status == 'absent' %}
+                        <span class="px-2 py-1 text-xs font-medium bg-red-100 text-red-800 rounded-full">Absent</span>
+                        {% elif attendance.status == 'late' %}
+                        <span class="px-2 py-1 text-xs font-medium bg-yellow-100 text-yellow-800 rounded-full">Late</span>
+                        {% elif attendance.status == 'leave' %}
+                        <span class="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">On Leave</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {% if attendance.period %}Period {{ attendance.period.period_no }}{% else %}Full Day{% endif %}
+                    </td>
+                    <td class="px-6 py-4 text-sm text-gray-500">
+                        {{ attendance.remarks|default:"-" }}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" class="px-6 py-8 text-center text-gray-500">
+                        No attendance records found. Select filters and click Filter.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

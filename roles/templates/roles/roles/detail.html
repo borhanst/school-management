@@ -1,0 +1,67 @@
+{% extends 'roles/base.html' %}
+
+{% block role_content %}
+<div class="max-w-4xl">
+    <div class="flex justify-between items-start mb-6">
+        <div>
+            <h2 class="text-xl font-semibold text-gray-800">{{ role.name }}</h2>
+            {% if role.description %}
+            <p class="text-gray-600 mt-1">{{ role.description }}</p>
+            {% endif %}
+        </div>
+        <div class="flex gap-2">
+            <a href="{% url 'roles:role_edit' role.pk %}" class="px-3 py-1.5 bg-primary-600 text-white rounded-md text-sm hover:bg-primary-700">Edit</a>
+            <a href="{% url 'roles:role_delete' role.pk %}" class="px-3 py-1.5 bg-red-600 text-white rounded-md text-sm hover:bg-red-700">Delete</a>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+        <div class="bg-white shadow-sm rounded-lg border border-gray-200 p-4">
+            <div class="text-sm text-gray-500">Status</div>
+            <div class="mt-1">
+                {% if role.is_active %}
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">Active</span>
+                {% else %}
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">Inactive</span>
+                {% endif %}
+            </div>
+        </div>
+        <div class="bg-white shadow-sm rounded-lg border border-gray-200 p-4">
+            <div class="text-sm text-gray-500">Priority</div>
+            <div class="mt-1 text-lg font-semibold text-gray-900">{{ role.priority }}</div>
+        </div>
+        <div class="bg-white shadow-sm rounded-lg border border-gray-200 p-4">
+            <div class="text-sm text-gray-500">Permissions</div>
+            <div class="mt-1 text-lg font-semibold text-gray-900">{{ role.permissions.count }}</div>
+        </div>
+    </div>
+
+    <!-- Permissions -->
+    <div class="bg-white shadow-sm rounded-lg border border-gray-200">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h3 class="text-lg font-medium text-gray-900">Permissions</h3>
+        </div>
+        <div class="p-6">
+            {% if role.permissions.exists %}
+            <div class="space-y-4">
+                {% for perm in role.permissions.all %}
+                <div class="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
+                    <div>
+                        <div class="font-medium text-gray-900">{{ perm.module.name }}</div>
+                        <div class="text-sm text-gray-500">{{ perm.permission_type.name }}</div>
+                    </div>
+                    <code class="text-xs bg-gray-100 px-2 py-1 rounded">{{ perm.module.slug }}_{{ perm.permission_type.codename }}</code>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="text-gray-500 text-center py-4">No permissions assigned to this role.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="mt-6">
+        <a href="{% url 'roles:role_list' %}" class="text-primary-600 hover:text-primary-900">← Back to Roles</a>
+    </div>
+</div>
+{% endblock %}

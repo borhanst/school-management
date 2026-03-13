@@ -1,0 +1,261 @@
+{% load permission_tags %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}School Management System{% endblock %}</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            50: '#eff6ff',
+                            100: '#dbeafe',
+                            200: '#bfdbfe',
+                            300: '#93c5fd',
+                            400: '#60a5fa',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            700: '#1d4ed8',
+                            800: '#1e40af',
+                            900: '#1e3a8a',
+                        },
+                        secondary: {
+                            50: '#f8fafc',
+                            100: '#f1f5f9',
+                            200: '#e2e8f0',
+                            300: '#cbd5e1',
+                            400: '#94a3b8',
+                            500: '#64748b',
+                            600: '#475569',
+                            700: '#334155',
+                            800: '#1e293b',
+                            900: '#0f172a',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- Alpine.js -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    
+    <!-- HTMX -->
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <style>
+        [x-cloak] { display: none !important; }
+        .htmx-indicator { opacity: 0; }
+        .htmx-request .htmx-indicator { opacity: 1; }
+        .htmx-request.htmx-indicator { opacity: 1; }
+    </style>
+    
+    {% block extra_css %}{% endblock %}
+</head>
+<body class="bg-gray-50" x-data="{ sidebarOpen: false, mobileMenu: false }">
+    
+    <!-- Page Wrapper -->
+    <div class="min-h-screen flex flex-col">
+        
+        {% if user.is_authenticated %}
+        <!-- Top Navigation -->
+        <header class="bg-white shadow-sm border-b border-gray-200 fixed w-full z-40 top-0">
+            <div class="flex items-center justify-between px-4 py-2">
+                <!-- Mobile menu button -->
+                <button @click="mobileMenu = !mobileMenu" class="lg:hidden p-2 rounded-md text-gray-600 hover:bg-gray-100">
+                    <i class="fas fa-bars text-xl"></i>
+                </button>
+                
+                <!-- Logo -->
+                <a href="{% url 'dashboard:index' %}" class="flex items-center space-x-2">
+                    <div class="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center">
+                        <i class="fas fa-graduation-cap text-white"></i>
+                    </div>
+                    <span class="text-xl font-bold text-gray-800 hidden md:block">SMS</span>
+                </a>
+                
+                <!-- Search Bar -->
+                <div class="hidden md:block flex-1 max-w-md mx-4">
+                    <div class="relative">
+                        <input type="text" 
+                               placeholder="Search students, teachers..." 
+                               class="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                        <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                    </div>
+                </div>
+                
+                <!-- Right Side -->
+                <div class="flex items-center space-x-4">
+                    <!-- Notifications -->
+                    <div x-data="{ notificationsOpen: false }" class="relative">
+                        <button @click="notificationsOpen = !notificationsOpen" class="p-2 rounded-full text-gray-600 hover:bg-gray-100 relative">
+                            <i class="fas fa-bell text-lg"></i>
+                            <span class="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full"></span>
+                        </button>
+                        <div x-show="notificationsOpen" @click.away="notificationsOpen = false" 
+                             x-cloak
+                             class="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
+                            <div class="px-4 py-2 border-b border-gray-100">
+                                <h3 class="font-semibold text-gray-800">Notifications</h3>
+                            </div>
+                            <div class="max-h-64 overflow-y-auto">
+                                <a href="#" class="block px-4 py-2 hover:bg-gray-50">
+                                    <p class="text-sm text-gray-800">New student admitted</p>
+                                    <p class="text-xs text-gray-500">2 hours ago</p>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- User Menu -->
+                    <div x-data="{ userMenuOpen: false }" class="relative">
+                        <button @click="userMenuOpen = !userMenuOpen" class="flex items-center space-x-2 p-2 rounded-lg hover:bg-gray-100">
+                            <img src="{% if user.photo %}{{ user.photo.url }}{% else %}https://via.placeholder.com/32{% endif %}" 
+                                 alt="{{ user.username }}" 
+                                 class="w-8 h-8 rounded-full object-cover">
+                            <span class="hidden md:block text-sm font-medium text-gray-700">{{ user.get_full_name|default:user.username }}</span>
+                            <i class="fas fa-chevron-down text-xs text-gray-500"></i>
+                        </button>
+                        <div x-show="userMenuOpen" @click.away="userMenuOpen = false" 
+                             x-cloak
+                             class="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
+                            <a href="{% url 'accounts:profile' %}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                                <i class="fas fa-user mr-2"></i> Profile
+                            </a>
+                            {% if user|has_permission:'accounts.manage_roles' %}
+                            <a href="{% url 'accounts:settings' %}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                                <i class="fas fa-cog mr-2"></i> Settings
+                            </a>
+                            {% endif %}
+                            <hr class="my-2 border-gray-100">
+                            <a href="{% url 'accounts:logout' %}" class="block px-4 py-2 text-sm text-red-600 hover:bg-gray-50">
+                                <i class="fas fa-sign-out-alt mr-2"></i> Logout
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+        
+        <!-- Sidebar -->
+        <aside :class="mobileMenu ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'"
+               class="fixed inset-y-0 left-0 z-30 w-64 bg-white shadow-lg transform transition-transform duration-300 lg:translate-x-0 mt-16">
+            <div class="flex flex-col h-full">
+                <!-- User Role Badge -->
+                <div class="px-4 py-3 border-b border-gray-100">
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary-100 text-primary-800 capitalize">
+                        {{ user.role }}
+                    </span>
+                </div>
+                
+                <!-- Navigation -->
+                <nav class="flex-1 overflow-y-auto py-4">
+                    {% block sidebar %}
+                    {% include 'partials/sidebar.html' %}
+                    {% endblock %}
+                </nav>
+                
+                <!-- Footer -->
+                <div class="px-4 py-3 border-t border-gray-200">
+                    <p class="text-xs text-gray-500 text-center">v1.0.0 &copy; 2025</p>
+                </div>
+            </div>
+        </aside>
+        
+        <!-- Overlay -->
+        <div x-show="mobileMenu" 
+             @click="mobileMenu = false" 
+             x-cloak
+             class="fixed inset-0 bg-black bg-opacity-50 z-20 lg:hidden">
+        </div>
+        
+        <!-- Main Content -->
+        <main class="flex-1 pt-16 lg:pl-64">
+            <div class="p-6">
+                {% block content %}{% endblock %}
+            </div>
+        </main>
+        
+        {% else %}
+        <!-- Guest Layout -->
+        <main class="flex-1">
+            {% block guest_content %}{% endblock %}
+        </main>
+        {% endif %}
+    </div>
+    
+    <!-- HTMX Modal Container -->
+    <div id="modal-container" 
+         x-data="{ showModal: false, modalTitle: '', modalContent: '' }"
+         x-show="showModal" 
+         x-cloak
+         class="fixed inset-0 z-50 overflow-y-auto">
+        <div class="flex items-center justify-center min-h-screen px-4">
+            <div class="fixed inset-0 bg-black bg-opacity-50 transition-opacity" @click="showModal = false"></div>
+            <div class="relative bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                <div id="modal-content"></div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Toast Notifications -->
+    <div id="toast-container" class="fixed bottom-4 right-4 z-50 space-y-2">
+        {% if messages %}
+            {% for message in messages %}
+            <div class="bg-white rounded-lg shadow-lg p-4 flex items-center space-x-3 animate-slide-in"
+                 x-data="{ show: true }"
+                 x-show="show"
+                 x-init="setTimeout(() => show = false, 5000)">
+                {% if message.tags == 'success' %}
+                <i class="fas fa-check-circle text-green-500"></i>
+                {% elif message.tags == 'error' %}
+                <i class="fas fa-exclamation-circle text-red-500"></i>
+                {% else %}
+                <i class="fas fa-info-circle text-blue-500"></i>
+                {% endif %}
+                <span class="text-sm text-gray-700">{{ message }}</span>
+                <button @click="show = false" class="ml-4 text-gray-400 hover:text-gray-600">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            {% endfor %}
+        {% endif %}
+    </div>
+    
+    {% block extra_js %}{% endblock %}
+    
+    <script>
+        // HTMX configuration
+        document.addEventListener('htmx:configRequest', (event) => {
+            event.detail.headers['X-CSRFToken'] = '{{ csrf_token }}';
+        });
+        
+        // Handle modal responses
+        document.addEventListener('htmx:afterSwap', (event) => {
+            if (event.detail.target.id === 'modal-content') {
+                const modal = document.getElementById('modal-container');
+                modal.__x.$data.showModal = true;
+            }
+        });
+        
+        // Close modal on escape
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                const modal = document.getElementById('modal-container');
+                if (modal && modal.__x.$data.showModal) {
+                    modal.__x.$data.showModal = false;
+                }
+            }
+        });
+    </script>
+</body>
+</html>

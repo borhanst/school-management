@@ -1,0 +1,241 @@
+{% extends 'base.html' %}
+
+{% block title %}Promote Students - School Management System{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="mb-6 flex justify-between items-center">
+    <div>
+        <h1 class="text-2xl font-bold text-gray-800">Promote Students</h1>
+        <p class="text-gray-600">Select students to promote to the next class level</p>
+    </div>
+    <a href="{% url 'students:promote_history' %}" 
+       class="px-4 py-2 bg-gray-600 text-white font-medium rounded-lg hover:bg-gray-700 transition-colors">
+        View History
+    </a>
+</div>
+
+<!-- Class Selection Form - All on same row -->
+<div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
+    <form method="GET" id="filter-form" action="{% url 'students:promote' %}" class="space-y-4">
+        <input type="hidden" name="from_class" value="{{ selected_class }}">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <!-- Current Class (with change handler) -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Current Class</label>
+                <select name="from_class" onchange="submitForm()"
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                    <option value="">-- Select a Class --</option>
+                    {% for class in classes %}
+                    <option value="{{ class.id }}" {% if selected_class == class.id %}selected{% endif %}>{{ class.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <!-- Promote To Class -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Promote To Class</label>
+                <select name="to_class" onchange="updateHiddenAndSubmit()"
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                    <option value="">-- Select Target Class --</option>
+                    {% for class in classes %}
+                    {% if class.id != selected_class %}
+                    <option value="{{ class.id }}" {% if selected_to_class == class.id %}selected{% endif %}>{{ class.name }}</option>
+                    {% endif %}
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <!-- Academic Year -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Academic Year</label>
+                <select name="academic_year" onchange="updateHiddenAndSubmit()"
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                    <option value="">-- Select Academic Year --</option>
+                    {% for year in academic_years %}
+                    <option value="{{ year.id }}" {% if selected_academic_year == year.id %}selected{% endif %}>{{ year.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+    </form>
+</div>
+
+{% if selected_class %}
+<!-- Student List -->
+<div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
+    <h2 class="text-lg font-semibold text-gray-800 mb-4">Students in {{ selected_class_obj.name }}</h2>
+    
+    {% if students %}
+    <form method="POST" id="promote-form" action="{% url 'students:promote' %}">
+        {% csrf_token %}
+        
+        <!-- Student Table -->
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left w-10">
+                            <input type="checkbox" id="select-all" 
+                                   class="w-4 h-4 text-primary-600 rounded focus:ring-primary-500">
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Roll No</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Admission No</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Gender</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">History</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200" id="student-table-body">
+                    {% for student in students %}
+                    <tr class="hover:bg-gray-50" data-student-id="{{ student.id }}">
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <input type="checkbox" name="students" value="{{ student.id }}"
+                                   class="student-checkbox w-4 h-4 text-primary-600 rounded focus:ring-primary-500">
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ student.roll_number }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ student.admission_no }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ student.user.get_full_name }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ student.gender|title }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <button type="button" 
+                                    onclick="loadHistoryModal('{{ student.id }}')"
+                                    class="text-primary-600 hover:text-primary-900 text-sm font-medium">
+                                {% if student.promotion_count > 0 %}
+                                <span class="flex items-center gap-1">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                    View ({{ student.promotion_count }})
+                                </span>
+                                {% else %}
+                                <span class="text-gray-400">No History</span>
+                                {% endif %}
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Warning -->
+        <div class="bg-yellow-50 border-l-4 border-yellow-500 p-4 rounded-r-lg mt-4">
+            <div class="flex">
+                <div class="flex-shrink-0">
+                    <svg class="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+                    </svg>
+                </div>
+                <div class="ml-3">
+                    <p class="text-sm text-yellow-700">
+                        <strong>Warning:</strong> Selected students will be moved to the target class. This action cannot be undone.
+                    </p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Submit with GET params -->
+        <div class="flex justify-end mt-4">
+            <input type="hidden" name="from_class" value="{{ selected_class }}">
+            <input type="hidden" name="to_class" value="{{ selected_to_class|default:'' }}">
+            <input type="hidden" name="academic_year" value="{{ selected_academic_year|default:'' }}">
+            <button type="submit" 
+                    class="px-6 py-2 bg-primary-600 text-white font-medium rounded-lg hover:bg-primary-700 focus:ring-4 focus:ring-primary-300 transition-colors">
+                Promote Selected Students
+            </button>
+        </div>
+    </form>
+    
+    <script>
+        // Load history in modal
+        function loadHistoryModal(studentId) {
+            const modal = document.getElementById('historyModal');
+            const content = document.getElementById('modalHistoryContent');
+            
+            // Show modal
+            modal.classList.remove('hidden');
+            content.innerHTML = 'Loading...';
+            
+            // Fetch history
+            fetch('/students/promote/history/' + studentId + '/')
+                .then(response => response.text())
+                .then(html => {
+                    content.innerHTML = html;
+                })
+                .catch(error => {
+                    content.innerHTML = 'Error loading history';
+                });
+        }
+        
+        function closeHistoryModal() {
+            document.getElementById('historyModal').classList.add('hidden');
+        }
+        
+        // Close modal on escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeHistoryModal();
+            }
+        });
+        
+        // Select All functionality
+        document.getElementById('select-all').addEventListener('change', function() {
+            const checkboxes = document.querySelectorAll('.student-checkbox');
+            checkboxes.forEach(function(checkbox) {
+                checkbox.checked = document.getElementById('select-all').checked;
+            });
+        });
+        
+        // Update select all when individual checkboxes change
+        document.querySelectorAll('.student-checkbox').forEach(function(checkbox) {
+            checkbox.addEventListener('change', function() {
+                const allCheckboxes = document.querySelectorAll('.student-checkbox');
+                const checkedCheckboxes = document.querySelectorAll('.student-checkbox:checked');
+                document.getElementById('select-all').checked = allCheckboxes.length === checkedCheckboxes.length;
+            });
+        });
+    </script>
+    {% else %}
+    <div class="text-center py-8 text-gray-500">
+        <p>No students found in this class.</p>
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
+<!-- Modal for Promotion History -->
+<div id="historyModal" class="fixed inset-0 z-50 hidden">
+    <div class="flex items-center justify-center min-h-screen px-4">
+        <!-- Modal backdrop -->
+        <div class="fixed inset-0 bg-black bg-opacity-50" onclick="closeHistoryModal()"></div>
+        <!-- Modal content -->
+        <div class="relative bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[80vh] overflow-hidden">
+            <!-- Modal header -->
+            <div class="flex justify-between items-center px-6 py-4 border-b border-gray-200">
+                <h3 class="text-lg font-semibold text-gray-900">Promotion History</h3>
+                <button type="button" onclick="closeHistoryModal()" class="text-gray-400 hover:text-gray-600">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+            <!-- Modal body -->
+            <div id="modalHistoryContent" class="px-6 py-4 overflow-y-auto max-h-[60vh]">
+                Loading...
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function submitForm() {
+    document.getElementById('filter-form').submit();
+}
+
+function updateHiddenAndSubmit() {
+    document.getElementById('filter-form').submit();
+}
+</script>
+
+{% endblock %}

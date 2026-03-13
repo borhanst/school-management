@@ -1,0 +1,190 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if schedule %}Edit{% else %}Add{% endif %} Exam Schedule - School Management System{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
+    <div>
+        <h1 class="text-2xl font-bold text-gray-800">{% if schedule %}Edit{% else %}Add{% endif %} Exam Schedule</h1>
+        <p class="text-gray-600">{% if schedule %}Update exam schedule details{% else %}Create a new exam schedule{% endif %}</p>
+    </div>
+</div>
+
+<!-- Breadcrumb -->
+<nav class="flex mb-4" aria-label="Breadcrumb">
+    <ol class="inline-flex items-center space-x-1 md:space-x-3">
+        <li class="inline-flex items-center">
+            <a href="{% url 'dashboard:index' %}" class="inline-flex items-center text-sm font-medium text-gray-700 hover:text-primary-600">
+                <i class="fas fa-home mr-2"></i>
+                Dashboard
+            </a>
+        </li>
+        <li>
+            <div class="flex items-center">
+                <i class="fas fa-chevron-right text-gray-400 mx-1"></i>
+                <a href="{% url 'examinations:schedule' %}" class="ml-1 text-sm font-medium text-gray-700 hover:text-primary-600 md:ml-2">Exam Schedule</a>
+            </div>
+        </li>
+        <li>
+            <div class="flex items-center">
+                <i class="fas fa-chevron-right text-gray-400 mx-1"></i>
+                <span class="ml-1 text-sm font-medium text-gray-500 md:ml-2">{% if schedule %}Edit{% else %}Add{% endif %}</span>
+            </div>
+        </li>
+    </ol>
+</nav>
+
+<!-- Form -->
+<div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+    <form method="POST" class="space-y-6">
+        {% csrf_token %}
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Exam Type -->
+            <div>
+                <label for="exam_type" class="block text-sm font-medium text-gray-700 mb-1">Exam Type <span class="text-red-500">*</span></label>
+                <select name="exam_type" id="exam_type" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                    <option value="">Select Exam Type</option>
+                    {% for exam_type in exam_types %}
+                    <option value="{{ exam_type.id }}" {% if schedule.exam_type_id == exam_type.id or form.exam_type.value == exam_type.id|stringformat:"s" %}selected{% endif %}>
+                        {{ exam_type.name }} ({{ exam_type.weightage }}%)
+                    </option>
+                    {% endfor %}
+                </select>
+                {% if not exam_types %}
+                <p class="mt-1 text-sm text-yellow-600">No exam types available. Please create exam types first.</p>
+                {% endif %}
+            </div>
+
+            <!-- Class Level -->
+            <div>
+                <label for="class_level" class="block text-sm font-medium text-gray-700 mb-1">Class <span class="text-red-500">*</span></label>
+                <select name="class_level" id="class_level" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                    <option value="">Select Class</option>
+                    {% for class_level in class_levels %}
+                    <option value="{{ class_level.id }}" {% if schedule.class_level_id == class_level.id or form.class_level.value == class_level.id|stringformat:"s" %}selected{% endif %}>
+                        {{ class_level.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Subject -->
+            <div>
+                <label for="subject" class="block text-sm font-medium text-gray-700 mb-1">Subject <span class="text-red-500">*</span></label>
+                <select name="subject" id="subject" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                    <option value="">Select Subject</option>
+                    {% if schedule %}
+                    <option value="{{ schedule.subject_id }}" selected>{{ schedule.subject.name }}</option>
+                    {% endif %}
+                </select>
+                <p class="mt-1 text-sm text-gray-500">Select a class first to see available subjects.</p>
+            </div>
+
+            <!-- Marks -->
+            <div>
+                <label for="marks" class="block text-sm font-medium text-gray-700 mb-1">Marks <span class="text-red-500">*</span></label>
+                <input type="number" name="marks" id="marks" value="{{ schedule.marks|default:'' }}" required min="0" step="0.01" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent" placeholder="Enter marks">
+            </div>
+
+            <!-- Date -->
+            <div>
+                <label for="date" class="block text-sm font-medium text-gray-700 mb-1">Date <span class="text-red-500">*</span></label>
+                <input type="date" name="date" id="date" value="{{ schedule.date|date:'Y-m-d'|default:'' }}" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+            </div>
+
+            <!-- Start Time -->
+            <div>
+                <label for="start_time" class="block text-sm font-medium text-gray-700 mb-1">Start Time <span class="text-red-500">*</span></label>
+                <input type="time" name="start_time" id="start_time" value="{{ schedule.start_time|time:'H:i'|default:'' }}" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+            </div>
+
+            <!-- End Time -->
+            <div>
+                <label for="end_time" class="block text-sm font-medium text-gray-700 mb-1">End Time <span class="text-red-500">*</span></label>
+                <input type="time" name="end_time" id="end_time" value="{{ schedule.end_time|time:'H:i'|default:'' }}" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+            </div>
+
+            <!-- Room No -->
+            <div>
+                <label for="room_no" class="block text-sm font-medium text-gray-700 mb-1">Room No</label>
+                <input type="text" name="room_no" id="room_no" value="{{ schedule.room_no|default:'' }}" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent" placeholder="Enter room number">
+            </div>
+        </div>
+
+        <!-- Instructions -->
+        <div>
+            <label for="instructions" class="block text-sm font-medium text-gray-700 mb-1">Instructions</label>
+            <textarea name="instructions" id="instructions" rows="3" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent" placeholder="Enter any special instructions for students">{{ schedule.instructions|default:'' }}</textarea>
+        </div>
+
+        <!-- Submit Buttons -->
+        <div class="flex items-center justify-end gap-4 pt-4 border-t border-gray-200">
+            <a href="{% url 'examinations:schedule' %}" class="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors">
+                Cancel
+            </a>
+            <button type="submit" class="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors">
+                <i class="fas fa-save mr-2"></i> {% if schedule %}Update{% else %}Save{% endif %} Schedule
+            </button>
+        </div>
+    </form>
+</div>
+
+<!-- JavaScript for dynamic subject loading -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const classLevelSelect = document.getElementById('class_level');
+    const subjectSelect = document.getElementById('subject');
+    
+    // Store initial subjects if editing
+    const initialSubjectId = '{{ schedule.subject_id|default:"" }}';
+
+    function loadSubjects() {
+        const classLevelId = classLevelSelect.value;
+        
+        // Clear current options
+        subjectSelect.innerHTML = '<option value="">Select Subject</option>';
+        
+        if (!classLevelId) {
+            return;
+        }
+
+        // Fetch subjects via AJAX
+        fetch(`{% url 'examinations:get_subjects' %}?class_level_id=${classLevelId}`)
+            .then(response => response.json())
+            .then(data => {
+                data.subjects.forEach(subject => {
+                    const option = document.createElement('option');
+                    option.value = subject.id;
+                    option.textContent = `${subject.name} (${subject.code})`;
+                    if (initialSubjectId && subject.id == initialSubjectId) {
+                        option.selected = true;
+                    }
+                    subjectSelect.appendChild(option);
+                });
+            })
+            .catch(error => console.error('Error loading subjects:', error));
+    }
+
+    // Load subjects when class level changes
+    classLevelSelect.addEventListener('change', loadSubjects);
+
+    // If editing and class is pre-selected, load subjects
+    if (classLevelSelect.value) {
+        loadSubjects();
+    }
+});
+</script>
+
+<!-- Messages -->
+{% if messages %}
+<div class="fixed bottom-4 right-4 z-50">
+    {% for message in messages %}
+    <div class="bg-{% if message.tags == 'error' %}red{% else %}green{% endif %}-500 text-white px-6 py-3 rounded-lg shadow-lg mb-2" role="alert">
+        {{ message }}
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

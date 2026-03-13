@@ -1,0 +1,282 @@
+{% load permission_tags %}
+{% get_user_permissions user as perms %}
+<div class="px-2 space-y-1" x-data="{ 
+    openMenu: (() => {
+        const path = window.location.pathname;
+        if (path.startsWith('/students/')) return 'students';
+        if (path.startsWith('/academics/')) return 'academics';
+        if (path.startsWith('/attendance/')) return 'attendance';
+        if (path.startsWith('/examinations/')) return 'examinations';
+        if (path.startsWith('/reports/')) return 'reports';
+        if (path.startsWith('/roles/')) return 'roles';
+        return null;
+    })(),
+    isActive(path) {
+        return window.location.pathname === path || window.location.pathname.startsWith(path);
+    }
+}">
+    <!-- Dashboard -->
+    {% if user|has_permission:'dashboard.view' %}
+    <a href="{% url 'dashboard:index' %}" 
+       class="flex items-center px-4 py-2.5 text-gray-700 rounded-lg hover:bg-gray-100"
+       :class="window.location.pathname === '/' ? 'bg-primary-50 text-primary-600' : ''">
+        <i class="fas fa-home w-6"></i>
+        <span class="font-medium">Dashboard</span>
+    </a>
+    {% endif %}
+    
+    {% if user|has_role:'student' and user|has_permission:'academics.view' %}
+    <!-- My Class -->
+    <a href="{% url 'academics:my_class' %}" 
+       class="flex items-center px-4 py-2.5 text-gray-700 rounded-lg hover:bg-gray-100"
+       :class="isActive('/academics/my-class') ? 'bg-primary-50 text-primary-600' : ''">
+        <i class="fas fa-school w-6"></i>
+        <span class="font-medium">My Class</span>
+    </a>
+    {% endif %}
+    
+    {% if user|has_any_permission:'students.view,students.add,students.promote' %}
+    <!-- Students -->
+    <div x-data="{}">
+        <button @click="openMenu = openMenu === 'students' ? null : 'students'" 
+                class="w-full flex items-center px-4 py-2.5 text-gray-700 rounded-lg hover:bg-gray-100"
+                :class="isActive('/students/') ? 'bg-primary-50 text-primary-600' : ''">
+            <i class="fas fa-user-graduate w-6"></i>
+            <span class="font-medium flex-1 text-left">Students</span>
+            <i class="fas fa-chevron-down text-xs transition-transform" :class="openMenu === 'students' ? 'rotate-180' : ''"></i>
+        </button>
+        <div x-show="openMenu === 'students'" x-collapse class="ml-4 mt-1 space-y-1">
+            {% if user|has_permission:'students.view' %}
+            <a href="{% url 'students:list' %}" class="flex items-center px-4 py-2 text-sm text-gray-600 rounded-lg hover:bg-gray-100"
+               :class="window.location.pathname === '/students/' ? 'bg-gray-100' : ''">
+                <i class="fas fa-list w-5"></i> All Students
+            </a>
+            {% endif %}
+            {% if user|has_permission:'students.add' %}
+            <a href="{% url 'students:add' %}" class="flex items-center px-4 py-2 text-sm text-gray-600 rounded-lg hover:bg-gray-100"
+               :class="window.location.pathname === '/students/add/' ? 'bg-gray-100' : ''">
+                <i class="fas fa-plus w-5"></i> Add Student
+            </a>
+            {% endif %}
+            {% if user|has_permission:'students.promote' %}
+            <a href="{% url 'students:promote' %}" class="flex items-center px-4 py-2 text-sm text-gray-600 rounded-lg hover:bg-gray-100"
+               :class="isActive('/students/promote') ? 'bg-gray-100' : ''">
+                <i class="fas fa-arrow-up w-5"></i> Promote Students
+            </a>
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- Teachers -->
+    {% comment %} <a href="{% url 'accounts:teachers' %}" 
+       class="flex items-center px-4 py-2.5 text-gray-700 rounded-lg hover:bg-gray-100"
+       :class="isActive('/accounts/teachers') ? 'bg-primary-50 text-primary-600' : ''">
+        <i class="fas fa-chalkboard-teacher w-6"></i>
+        <span class="font-medium">Teachers</span>
+    </a> {% endcomment %}
+    {% endif %}
+    
+    <!-- Academics -->
+    {% if user|has_permission:'academics.view' %}
+    <div x-data="{}">
+        <button @click="openMenu = openMenu === 'academics' ? null : 'academics'" 
+                class="w-full flex items-center px-4 py-2.5 text-gray-700 rounded-lg hover:bg-gray-100"
+                :class="isActive('/academics/') ? 'bg-primary-50 text-primary-600' : ''">
+            <i class="fas fa-book w-6"></i>
+            <span class="font-medium flex-1 text-left">Academics</span>
+            <i class="fas fa-chevron-down text-xs transition-transform" :class="openMenu === 'academics' ? 'rotate-180' : ''"></i>
+        </button>
+        <div x-show="openMenu === 'academics'" x-collapse class="ml-4 mt-1 space-y-1">
+            <a href="{% url 'academics:classes' %}" class="flex items-center px-4 py-2 text-sm text-gray-600 rounded-lg hover:bg-gray-100"
+               :class="window.location.pathname === '/academics/classes/' ? 'bg-gray-100' : ''">
+                <i class="fas fa-door-open w-5"></i> Classes
+            </a>
+            <a href="{% url 'academics:subjects' %}" class="flex items-center px-4 py-2 text-sm text-gray-600 rounded-lg hover:bg-gray-100"
+               :class="window.location.pathname === '/academics/subjects/' ? 'bg-gray-100' : ''">
+                <i class="fas fa-book-open w-5"></i> Subjects
+            </a>
+            <a href="{% url 'academics:timetable' %}" class="flex items-center px-4 py-2 text-sm text-gray-600 rounded-lg hover:bg-gray-100"
+               :class="window.location.pathname === '/academics/timetable/' ? 'bg-gray-100' : ''">
+                <i class="fas fa-calendar-alt w-5"></i> Timetable
+            </a>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Attendance -->
+    {% if user|has_any_permission:'attendance.view,attendance.mark,attendance.view_reports,attendance.approve_leave' %}
+    <div x-data="{}">
+        <button @click="openMenu = openMenu === 'attendance' ? null : 'attendance'" 
+                class="w-full flex items-center px-4 py-2.5 text-gray-700 rounded-lg hover:bg-gray-100"
+                :class="isActive('/attendance/') ? 'bg-primary-50 text-primary-600' : ''">
+            <i class="fas fa-calendar-check w-6"></i>
+            <span class="font-medium flex-1 text-left">Attendance</span>
+            <i class="fas fa-chevron-down text-xs transition-transform" :class="openMenu === 'attendance' ? 'rotate-180' : ''"></i>
+        </button>
+        <div x-show="openMenu === 'attendance'" x-collapse class="ml-4 mt-1 space-y-1">
+            {% comment %} <a href="{% url 'attendance:index' %}" class="flex items-center px-4 py-2 text-sm text-gray-600 rounded-lg hover:bg-gray-100"
+               :class="window.location.pathname === '/attendance/' ? 'bg-gray-100' : ''">
+                <i class="fas fa-home w-5"></i> Dashboard
+            </a> {% endcomment %}
+            {% if user|has_permission:'attendance.mark' %}
+            <a href="{% url 'attendance:mark' %}" class="flex items-center px-4 py-2 text-sm text-gray-600 rounded-lg hover:bg-gray-100"
+               :class="isActive('/attendance/mark') ? 'bg-gray-100' : ''">
+                <i class="fas fa-check w-5"></i> Mark Attendance
+            </a>
+            {% endif %}
+            {% if user|has_permission:'attendance.view_reports' %}
+            <a href="{% url 'attendance:report' %}" class="flex items-center px-4 py-2 text-sm text-gray-600 rounded-lg hover:bg-gray-100"
+               :class="isActive('/attendance/report') ? 'bg-gray-100' : ''">
+                <i class="fas fa-chart-bar w-5"></i> Attendance Report
+            </a>
+            {% endif %}
+            {% if user|has_permission:'attendance.view' %}
+            <a href="{% url 'attendance:leave_requests' %}" class="flex items-center px-4 py-2 text-sm text-gray-600 rounded-lg hover:bg-gray-100"
+               :class="isActive('/attendance/leave') ? 'bg-gray-100' : ''">
+                <i class="fas fa-envelope-open-text w-5"></i> Leave Requests
+            </a>
+            {% endif %}
+            {% if user|has_role:'student' and user|has_permission:'attendance.view' %}
+            <a href="{% url 'attendance:my_attendance' %}" class="flex items-center px-4 py-2 text-sm text-gray-600 rounded-lg hover:bg-gray-100"
+               :class="isActive('/attendance/my') ? 'bg-gray-100' : ''">
+                <i class="fas fa-user-clock w-5"></i> My Attendance
+            </a>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Examinations -->
+    {% if user|has_any_permission:'examinations.view,examinations.add,examinations.edit,examinations.delete' %}
+    <div x-data="{}">
+        <button @click="openMenu = openMenu === 'examinations' ? null : 'examinations'" 
+                class="w-full flex items-center px-4 py-2.5 text-gray-700 rounded-lg hover:bg-gray-100"
+                :class="isActive('/examinations/') ? 'bg-primary-50 text-primary-600' : ''">
+            <i class="fas fa-clipboard-list w-6"></i>
+            <span class="font-medium flex-1 text-left">Examinations</span>
+            <i class="fas fa-chevron-down text-xs transition-transform" :class="openMenu === 'examinations' ? 'rotate-180' : ''"></i>
+        </button>
+        <div x-show="openMenu === 'examinations'" x-collapse class="ml-4 mt-1 space-y-1">
+            {% if user|has_permission:'examinations.view' %}
+            <a href="{% url 'examinations:grades' %}" class="flex items-center px-4 py-2 text-sm text-gray-600 rounded-lg hover:bg-gray-100">
+                <i class="fas fa-star w-5"></i> Grades
+            </a>
+            <a href="{% url 'examinations:schedule' %}" class="flex items-center px-4 py-2 text-sm text-gray-600 rounded-lg hover:bg-gray-100">
+                <i class="fas fa-calendar w-5"></i> Exam Schedule
+            </a>
+            <a href="{% url 'examinations:report_card' %}" class="flex items-center px-4 py-2 text-sm text-gray-600 rounded-lg hover:bg-gray-100">
+                <i class="fas fa-file-alt w-5"></i> Report Cards
+            </a>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Fees -->
+    {% if user|has_permission:'fees.view' %}
+    <a href="{% url 'fees:list' %}" 
+       class="flex items-center px-4 py-2.5 text-gray-700 rounded-lg hover:bg-gray-100"
+       :class="isActive('/fees/') ? 'bg-primary-50 text-primary-600' : ''">
+        <i class="fas fa-dollar-sign w-6"></i>
+        <span class="font-medium">Fees</span>
+    </a>
+    {% endif %}
+    
+    <!-- Library -->
+    {% if user|has_permission:'library.view' %}
+    <a href="{% url 'library:books' %}" 
+       class="flex items-center px-4 py-2.5 text-gray-700 rounded-lg hover:bg-gray-100"
+       :class="isActive('/library/') ? 'bg-primary-50 text-primary-600' : ''">
+        <i class="fas fa-book-reader w-6"></i>
+        <span class="font-medium">Library</span>
+    </a>
+    {% endif %}
+    
+    <!-- Transport -->
+    {% if user|has_permission:'transport.view' %}
+    <a href="{% url 'transport:routes' %}" 
+       class="flex items-center px-4 py-2.5 text-gray-700 rounded-lg hover:bg-gray-100"
+       :class="isActive('/transport/') ? 'bg-primary-50 text-primary-600' : ''">
+        <i class="fas fa-bus w-6"></i>
+        <span class="font-medium">Transport</span>
+    </a>
+    {% endif %}
+    
+    <!-- Messages -->
+    {% if user|has_permission:'communications.view' %}
+    <a href="{% url 'communications:messages' %}" 
+       class="flex items-center px-4 py-2.5 text-gray-700 rounded-lg hover:bg-gray-100"
+       :class="isActive('/communications/messages') ? 'bg-primary-50 text-primary-600' : ''">
+        <i class="fas fa-envelope w-6"></i>
+        <span class="font-medium">Messages</span>
+        <span class="ml-auto bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">3</span>
+    </a>
+    
+    <!-- Notices -->
+    <a href="{% url 'communications:notices' %}" 
+       class="flex items-center px-4 py-2.5 text-gray-700 rounded-lg hover:bg-gray-100"
+       :class="isActive('/communications/notices') ? 'bg-primary-50 text-primary-600' : ''">
+        <i class="fas fa-bullhorn w-6"></i>
+        <span class="font-medium">Notices</span>
+    </a>
+    {% endif %}
+    
+    {% if user|has_permission:'reports.view' %}
+    <!-- Reports -->
+    <div x-data="{}">
+        <button @click="openMenu = openMenu === 'reports' ? null : 'reports'" 
+                class="w-full flex items-center px-4 py-2.5 text-gray-700 rounded-lg hover:bg-gray-100"
+                :class="isActive('/reports/') ? 'bg-primary-50 text-primary-600' : ''">
+            <i class="fas fa-chart-pie w-6"></i>
+            <span class="font-medium flex-1 text-left">Reports</span>
+            <i class="fas fa-chevron-down text-xs transition-transform" :class="openMenu === 'reports' ? 'rotate-180' : ''"></i>
+        </button>
+        <div x-show="openMenu === 'reports'" x-collapse class="ml-4 mt-1 space-y-1">
+            <a href="{% url 'reports:student' %}" class="flex items-center px-4 py-2 text-sm text-gray-600 rounded-lg hover:bg-gray-100">
+                <i class="fas fa-user-graduate w-5"></i> Student Report
+            </a>
+            <a href="{% url 'reports:attendance' %}" class="flex items-center px-4 py-2 text-sm text-gray-600 rounded-lg hover:bg-gray-100">
+                <i class="fas fa-calendar-check w-5"></i> Attendance
+            </a>
+            <a href="{% url 'reports:fees' %}" class="flex items-center px-4 py-2 text-sm text-gray-600 rounded-lg hover:bg-gray-100">
+                <i class="fas fa-dollar-sign w-5"></i> Fee Collection
+            </a>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Role Management -->
+    {% if user|has_permission:'accounts.manage_roles' %}
+    <div x-data="{}">
+        <button @click="openMenu = openMenu === 'roles' ? null : 'roles'" 
+                class="w-full flex items-center px-4 py-2.5 text-gray-700 rounded-lg hover:bg-gray-100"
+                :class="isActive('/roles/') ? 'bg-primary-50 text-primary-600' : ''">
+            <i class="fas fa-user-shield w-6"></i>
+            <span class="font-medium flex-1 text-left">Role Management</span>
+            <i class="fas fa-chevron-down text-xs transition-transform" :class="openMenu === 'roles' ? 'rotate-180' : ''"></i>
+        </button>
+        <div x-show="openMenu === 'roles'" x-collapse class="ml-4 mt-1 space-y-1">
+            <a href="{% url 'roles:module_list' %}" class="flex items-center px-4 py-2 text-sm text-gray-600 rounded-lg hover:bg-gray-100"
+               :class="window.location.pathname === '/roles/modules/' ? 'bg-gray-100' : ''">
+                <i class="fas fa-cube w-5"></i> Modules
+            </a>
+            <a href="{% url 'roles:role_list' %}" class="flex items-center px-4 py-2 text-sm text-gray-600 rounded-lg hover:bg-gray-100"
+               :class="window.location.pathname === '/roles/roles/' ? 'bg-gray-100' : ''">
+                <i class="fas fa-user-tag w-5"></i> Roles
+            </a>
+            <a href="{% url 'roles:assignment_list' %}" class="flex items-center px-4 py-2 text-sm text-gray-600 rounded-lg hover:bg-gray-100"
+               :class="window.location.pathname === '/roles/assignments/' ? 'bg-gray-100' : ''">
+                <i class="fas fa-users-cog w-5"></i> User Assignments
+            </a>
+        </div>
+    </div>
+    
+    <!-- Settings -->
+    <a href="{% url 'accounts:settings' %}" 
+       class="flex items-center px-4 py-2.5 text-gray-700 rounded-lg hover:bg-gray-100"
+       :class="isActive('/accounts/settings') ? 'bg-primary-50 text-primary-600' : ''">
+        <i class="fas fa-cogs w-6"></i>
+        <span class="font-medium">Settings</span>
+    </a>
+    {% endif %}
+</div>

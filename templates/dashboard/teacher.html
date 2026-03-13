@@ -1,0 +1,142 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard - Teacher{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="mb-8">
+    <h1 class="text-2xl font-bold text-gray-800">Teacher Dashboard</h1>
+    <p class="text-gray-600">Welcome back, {{ user.get_full_name }}!</p>
+</div>
+
+<!-- Teacher Info Card -->
+{% if teacher %}
+<div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100 mb-8">
+    <div class="flex items-center justify-between">
+        <div>
+            <h2 class="text-lg font-semibold text-gray-800">{{ teacher.user.get_full_name }}</h2>
+            <p class="text-gray-600">Employee ID: {{ teacher.employee_id }}</p>
+            <p class="text-gray-600">Department: {{ teacher.department|default:"N/A" }}</p>
+            {% if academic_year %}
+            <p class="text-gray-500 text-sm">Academic Year: {{ academic_year.name }}</p>
+            {% endif %}
+        </div>
+        <div class="w-14 h-14 bg-blue-100 rounded-xl flex items-center justify-center">
+            <i class="fas fa-chalkboard-teacher text-2xl text-blue-600"></i>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Stats Grid -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+    <!-- Classes Taught -->
+    <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-sm text-gray-500">Classes Teaching</p>
+                <p class="text-3xl font-bold text-gray-800">{{ classes_taught|length }}</p>
+                <p class="text-xs text-gray-500 mt-1">Active classes</p>
+            </div>
+            <div class="w-14 h-14 bg-indigo-100 rounded-xl flex items-center justify-center">
+                <i class="fas fa-books text-2xl text-indigo-600"></i>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Pending Grades -->
+    <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-sm text-gray-500">Pending Grades</p>
+                <p class="text-3xl font-bold text-gray-800">{{ pending_grades }}</p>
+                <p class="text-xs text-gray-500 mt-1">To be entered</p>
+            </div>
+            <div class="w-14 h-14 bg-yellow-100 rounded-xl flex items-center justify-center">
+                <i class="fas fa-pen text-2xl text-yellow-600"></i>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Today's Timetable -->
+    <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-sm text-gray-500">Today's Classes</p>
+                <p class="text-3xl font-bold text-gray-800">{{ today_timetable|length }}</p>
+                <p class="text-xs text-gray-500 mt-1">Scheduled today</p>
+            </div>
+            <div class="w-14 h-14 bg-green-100 rounded-xl flex items-center justify-center">
+                <i class="fas fa-clock text-2xl text-green-600"></i>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Classes Taught -->
+<div class="bg-white rounded-xl shadow-sm border border-gray-100 mb-8">
+    <div class="p-6 border-b border-gray-100">
+        <h2 class="text-lg font-semibold text-gray-800">Classes Teaching</h2>
+    </div>
+    <div class="p-6">
+        {% if classes_taught %}
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {% for assignment in classes_taught %}
+            <div class="border border-gray-100 rounded-lg p-4">
+                <h3 class="font-semibold text-gray-800">{{ assignment.subject.name }}</h3>
+                <p class="text-gray-600 text-sm">{{ assignment.section.class_level.name }} - {{ assignment.section.name }}</p>
+                <p class="text-gray-500 text-xs mt-2">{{ assignment.subject.code }}</p>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="text-gray-500 text-center py-4">No class assignments found.</p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Today's Timetable -->
+<div class="bg-white rounded-xl shadow-sm border border-gray-100">
+    <div class="p-6 border-b border-gray-100">
+        <h2 class="text-lg font-semibold text-gray-800">Today's Timetable</h2>
+    </div>
+    <div class="p-6">
+        {% if today_timetable %}
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead>
+                    <tr class="text-left">
+                        <th class="pb-3 text-sm font-medium text-gray-500">Time</th>
+                        <th class="pb-3 text-sm font-medium text-gray-500">Subject</th>
+                        <th class="pb-3 text-sm font-medium text-gray-500">Class</th>
+                        <th class="pb-3 text-sm font-medium text-gray-500">Room</th>
+                        <th class="pb-3 text-sm font-medium text-gray-500">Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in today_timetable %}
+                    <tr class="border-t border-gray-100 {% if item.status == 'upcoming' %}bg-red-50{% elif item.status == 'completed' %}bg-green-50{% elif item.status == 'ongoing' %}bg-blue-50{% endif %}">
+                        <td class="py-3">{{ item.start_time }} - {{ item.end_time }}</td>
+                        <td class="py-3">{{ item.slot.subject.name }}</td>
+                        <td class="py-3">{{ item.slot.section.class_level.name }} - {{ item.slot.section.name }}</td>
+                        <td class="py-3">{{ item.slot.room|default:"N/A" }}</td>
+                        <td class="py-3">
+                            {% if item.status == 'upcoming' %}
+                            <span class="px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">Upcoming</span>
+                            {% elif item.status == 'completed' %}
+                            <span class="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">Completed</span>
+                            {% elif item.status == 'ongoing' %}
+                            <span class="px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">Ongoing</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-gray-500 text-center py-4">No classes scheduled for today.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
