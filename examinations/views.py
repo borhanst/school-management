@@ -10,6 +10,17 @@ from students.models import AcademicYear, ClassLevel, Section, Student
 from .models import ExamSchedule, ExamType, Grade, Term
 
 
+def _filter_students_for_parent(queryset, user):
+    """Restrict parent users to only their linked children."""
+    if user.role != "parent":
+        return queryset
+
+    if not hasattr(user, "parent_profile"):
+        return queryset.none()
+
+    return queryset.filter(parents=user.parent_profile).distinct()
+
+
 @login_required
 @permission_required("examinations", "view")
 def index(request):
@@ -26,6 +37,9 @@ def index(request):
         total_schedules = ExamSchedule.objects.filter(
             academic_year=academic_year
         ).count()
+        total_exam_types = ExamType.objects.filter(
+            academic_year=academic_year, is_active=True
+        ).count()
 
         # Get upcoming exams (next 7 days)
         from datetime import date, timedelta
@@ -41,11 +55,73 @@ def index(request):
         context.update(
             {
                 "total_schedules": total_schedules,
+                "total_exam_types": total_exam_types,
                 "upcoming_exams": upcoming_exams,
             }
         )
 
     return render(request, "examinations/index.html", context)
+
+
+@login_required
+@permission_required("examinations", "add")
+def exam_type_create(request):
+    """Create exam types for the current academic year."""
+    try:
+        academic_year = AcademicYear.objects.get(is_current=True)
+    except AcademicYear.DoesNotExist:
+        messages.error(request, "No active academic year found.")
+        return redirect("examinations:index")
+
+    if request.method == "POST":
+        name = (request.POST.get("name") or "").strip()
+        weightage = (request.POST.get("weightage") or "").strip()
+        description = (request.POST.get("description") or "").strip()
+        is_active = request.POST.get("is_active") == "on"
+
+        if not name or not weightage:
+            messages.error(request, "Name and weightage are required.")
+            return redirect("examinations:exam_type_create")
+
+        try:
+            weightage_value = float(weightage)
+        except ValueError:
+            messages.error(request, "Weightage must be a valid number.")
+            return redirect("examinations:exam_type_create")
+
+        if weightage_value < 0 or weightage_value > 100:
+            messages.error(
+                request, "Weightage must be between 0 and 100."
+            )
+            return redirect("examinations:exam_type_create")
+
+        if ExamType.objects.filter(
+            academic_year=academic_year, name__iexact=name
+        ).exists():
+            messages.error(
+                request,
+                "An exam type with this name already exists for the current academic year.",
+            )
+            return redirect("examinations:exam_type_create")
+
+        ExamType.objects.create(
+            name=name,
+            academic_year=academic_year,
+            weightage=weightage,
+            description=description,
+            is_active=is_active,
+        )
+        messages.success(request, "Exam type created successfully.")
+        return redirect("examinations:exam_type_create")
+
+    exam_types = ExamType.objects.filter(academic_year=academic_year).order_by(
+        "name"
+    )
+    context = {
+        "academic_year": academic_year,
+        "exam_types": exam_types,
+    }
+    return render(request, "examinations/exam_type_form.html", context)
 
 
 @login_required
@@ -180,7 +256,9 @@ def grade_entry(request):
     exam_types = ExamType.objects.filter(
         academic_year=academic_year, is_active=True
     )
-    class_levels = ClassLevel.objects.filter(academic_year=academic_year)
+    class_levels = ClassLevel.objects.filter(
+        sections__academic_year=academic_year, sections__is_active=True
+    ).distinct()
 
     context = {
         "exam_types": exam_types,
@@ -307,6 +385,9 @@ def get_students_for_grade(request):
 @permission_required("examinations", "view")
 def schedule(request):
     """Exam schedule list and management."""
+    if request.user.role == "student":
+        return redirect("examinations:my_exams")
+
     try:
         academic_year = AcademicYear.objects.get(is_current=True)
     except AcademicYear.DoesNotExist:
@@ -567,6 +648,13 @@ def report_card(request):
         class_levels = ClassLevel.objects.filter(
             sections__academic_year=academic_year, sections__is_active=True
         ).distinct()
+        if request.user.role == "parent" and hasattr(
+            request.user, "parent_profile"
+        ):
+            class_levels = class_levels.filter(
+                students__parents=request.user.parent_profile,
+                students__academic_year=academic_year,
+            ).distinct()
 
         context.update(
             {
@@ -582,8 +670,12 @@ def report_card(request):
         student_id = request.GET.get("student")
 
         if student_id:
-            student = get_object_or_404(
+            student_queryset = _filter_students_for_parent(
                 Student.objects.select_related("user", "class_level"),
+                request.user,
+            )
+            student = get_object_or_404(
+                student_queryset,
                 id=student_id,
                 academic_year=academic_year,
             )
@@ -613,6 +705,9 @@ def report_card(request):
                     class_level_id=class_level_id,
                     is_active=True,
                 ).select_related("user")
+                students = _filter_students_for_parent(
+                    students, request.user
+                )
                 context["students"] = students
                 context["selected_class_level"] = class_level_id
 

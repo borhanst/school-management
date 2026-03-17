@@ -71,11 +71,26 @@ class PermissionType(models.Model):
 class Role(models.Model):
     """Role with permissions from multiple modules."""
 
+    DEFAULT_ROLE_TYPE_CHOICES = [
+        ("", "No default user type"),
+        ("admin", "Administrator"),
+        ("teacher", "Teacher"),
+        ("student", "Student"),
+        ("parent", "Parent"),
+    ]
+
     name = models.CharField(max_length=100, unique=True)
     description = models.TextField(blank=True)
     is_active = models.BooleanField(default=True)
     is_default = models.BooleanField(
         default=False, help_text="Default role for new users"
+    )
+    default_for_role = models.CharField(
+        max_length=20,
+        choices=DEFAULT_ROLE_TYPE_CHOICES,
+        blank=True,
+        default="",
+        help_text="Automatically assign this role to new users of the selected type.",
     )
     priority = models.PositiveIntegerField(
         default=0, help_text="Higher priority roles take precedence"

@@ -1,0 +1,215 @@
+{% extends 'base.html' %}
+
+{% block title %}Profile - School Management System{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-6xl space-y-6">
+    <div class="rounded-3xl border border-slate-200 bg-[linear-gradient(135deg,#ffffff_0%,#eff6ff_45%,#f8fafc_100%)] p-6 shadow-sm">
+        <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div class="flex items-center gap-4">
+                <img
+                    src="{% if user.photo %}{{ user.photo.url }}{% else %}https://via.placeholder.com/96{% endif %}"
+                    alt="{{ user.username }}"
+                    class="h-20 w-20 rounded-2xl border border-white object-cover shadow-sm"
+                >
+                <div>
+                    <p class="text-sm font-medium uppercase tracking-[0.2em] text-primary-700">My Profile</p>
+                    <h1 class="text-3xl font-bold text-slate-900">{{ user.get_full_name|default:user.username }}</h1>
+                    <p class="mt-1 text-sm text-slate-600">{{ user.email|default:"No email added" }}</p>
+                </div>
+            </div>
+            <div class="flex flex-wrap gap-3">
+                <span class="inline-flex items-center rounded-full bg-primary-100 px-3 py-1 text-sm font-medium text-primary-800 capitalize">
+                    {{ user.role }}
+                </span>
+                {% if user.phone %}
+                <span class="inline-flex items-center rounded-full bg-slate-100 px-3 py-1 text-sm font-medium text-slate-700">
+                    <i class="fas fa-phone mr-2 text-xs"></i>{{ user.phone }}
+                </span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+        <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div class="mb-6 border-b border-slate-100 pb-4">
+                <p class="text-xs font-semibold uppercase tracking-[0.2em] text-sky-700">Account</p>
+                <h2 class="mt-1 text-xl font-semibold text-slate-900">Basic Information</h2>
+                <p class="mt-1 text-sm text-slate-600">Update your personal account details from here.</p>
+            </div>
+
+            <form method="POST" enctype="multipart/form-data" class="space-y-5">
+                {% csrf_token %}
+
+                {% if form.non_field_errors %}
+                <div class="rounded-2xl border border-red-200 bg-red-50 p-4">
+                    {% for error in form.non_field_errors %}
+                    <p class="text-sm text-red-700">{{ error }}</p>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                <div class="grid gap-4 md:grid-cols-2">
+                    <div>
+                        <label class="mb-1 block text-sm font-medium text-slate-700">First Name</label>
+                        {{ form.first_name }}
+                        {% if form.first_name.errors %}<p class="mt-1 text-sm text-red-600">{{ form.first_name.errors.0 }}</p>{% endif %}
+                    </div>
+                    <div>
+                        <label class="mb-1 block text-sm font-medium text-slate-700">Last Name</label>
+                        {{ form.last_name }}
+                        {% if form.last_name.errors %}<p class="mt-1 text-sm text-red-600">{{ form.last_name.errors.0 }}</p>{% endif %}
+                    </div>
+                    <div>
+                        <label class="mb-1 block text-sm font-medium text-slate-700">Email</label>
+                        {{ form.email }}
+                        {% if form.email.errors %}<p class="mt-1 text-sm text-red-600">{{ form.email.errors.0 }}</p>{% endif %}
+                    </div>
+                    <div>
+                        <label class="mb-1 block text-sm font-medium text-slate-700">Phone</label>
+                        {{ form.phone }}
+                        {% if form.phone.errors %}<p class="mt-1 text-sm text-red-600">{{ form.phone.errors.0 }}</p>{% endif %}
+                    </div>
+                    <div>
+                        <label class="mb-1 block text-sm font-medium text-slate-700">Gender</label>
+                        {{ form.gender }}
+                        {% if form.gender.errors %}<p class="mt-1 text-sm text-red-600">{{ form.gender.errors.0 }}</p>{% endif %}
+                    </div>
+                    <div>
+                        <label class="mb-1 block text-sm font-medium text-slate-700">Blood Group</label>
+                        {{ form.blood_group }}
+                        {% if form.blood_group.errors %}<p class="mt-1 text-sm text-red-600">{{ form.blood_group.errors.0 }}</p>{% endif %}
+                    </div>
+                    <div>
+                        <label class="mb-1 block text-sm font-medium text-slate-700">Date of Birth</label>
+                        {{ form.date_of_birth }}
+                        {% if form.date_of_birth.errors %}<p class="mt-1 text-sm text-red-600">{{ form.date_of_birth.errors.0 }}</p>{% endif %}
+                    </div>
+                    <div>
+                        <label class="mb-1 block text-sm font-medium text-slate-700">Photo</label>
+                        {{ form.photo }}
+                        {% if form.photo.errors %}<p class="mt-1 text-sm text-red-600">{{ form.photo.errors.0 }}</p>{% endif %}
+                    </div>
+                </div>
+
+                <div>
+                    <label class="mb-1 block text-sm font-medium text-slate-700">Address</label>
+                    {{ form.address }}
+                    {% if form.address.errors %}<p class="mt-1 text-sm text-red-600">{{ form.address.errors.0 }}</p>{% endif %}
+                </div>
+
+                <div class="flex justify-end border-t border-slate-100 pt-4">
+                    <button type="submit" class="rounded-xl bg-primary-600 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-primary-700">
+                        Save Changes
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <div class="space-y-6">
+            <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                <div class="mb-4 border-b border-slate-100 pb-4">
+                    <p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Overview</p>
+                    <h2 class="mt-1 text-xl font-semibold text-slate-900">Account Summary</h2>
+                </div>
+                <div class="space-y-4 text-sm text-slate-700">
+                    <div class="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3">
+                        <span>Username</span>
+                        <span class="font-medium text-slate-900">{{ user.username }}</span>
+                    </div>
+                    <div class="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3">
+                        <span>Role</span>
+                        <span class="font-medium capitalize text-slate-900">{{ user.role }}</span>
+                    </div>
+                    <div class="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3">
+                        <span>Status</span>
+                        <span class="font-medium {% if user.is_active %}text-emerald-700{% else %}text-red-700{% endif %}">
+                            {% if user.is_active %}Active{% else %}Inactive{% endif %}
+                        </span>
+                    </div>
+                    <div class="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3">
+                        <span>Joined</span>
+                        <span class="font-medium text-slate-900">{{ user.date_joined|date:"d M Y" }}</span>
+                    </div>
+                </div>
+            </div>
+
+            {% if teacher_profile %}
+            <div class="rounded-3xl border border-emerald-200 bg-emerald-50/70 p-6 shadow-sm">
+                <div class="mb-4 border-b border-emerald-200 pb-4">
+                    <p class="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-700">Teacher Profile</p>
+                    <h2 class="mt-1 text-xl font-semibold text-emerald-950">Professional Details</h2>
+                </div>
+                <div class="space-y-3 text-sm text-emerald-900">
+                    <div class="flex items-center justify-between">
+                        <span>Employee ID</span>
+                        <span class="font-semibold">{{ teacher_profile.employee_id }}</span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span>Designation</span>
+                        <span class="font-semibold">{{ teacher_profile.get_designation_display }}</span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span>Experience</span>
+                        <span class="font-semibold">{{ teacher_profile.experience }} years</span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span>Joining Date</span>
+                        <span class="font-semibold">{{ teacher_profile.joining_date|date:"d M Y"|default:"Not set" }}</span>
+                    </div>
+                    <div class="rounded-2xl bg-white/70 p-4">
+                        <p class="mb-1 font-medium">Qualification</p>
+                        <p>{{ teacher_profile.qualification|default:"Not added yet." }}</p>
+                    </div>
+                    <div class="rounded-2xl bg-white/70 p-4">
+                        <p class="mb-1 font-medium">Specializations</p>
+                        <p>{{ teacher_profile.specializations|default:"Not added yet." }}</p>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if parent_profile %}
+            <div class="rounded-3xl border border-amber-200 bg-amber-50/70 p-6 shadow-sm">
+                <div class="mb-4 border-b border-amber-200 pb-4">
+                    <p class="text-xs font-semibold uppercase tracking-[0.2em] text-amber-700">Parent Profile</p>
+                    <h2 class="mt-1 text-xl font-semibold text-amber-950">Family Details</h2>
+                </div>
+                <div class="space-y-3 text-sm text-amber-900">
+                    <div class="flex items-center justify-between">
+                        <span>Relation</span>
+                        <span class="font-semibold">{{ parent_profile.get_relation_display }}</span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span>Occupation</span>
+                        <span class="font-semibold">{{ parent_profile.occupation|default:"Not set" }}</span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span>Emergency Contact</span>
+                        <span class="font-semibold">{{ parent_profile.emergency_contact|default:"Not set" }}</span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span>Income</span>
+                        <span class="font-semibold">{{ parent_profile.income }}</span>
+                    </div>
+                    <div class="rounded-2xl bg-white/70 p-4">
+                        <p class="mb-2 font-medium">Linked Children</p>
+                        <div class="space-y-2">
+                            {% for child in parent_profile.children.all %}
+                            <div class="flex items-center justify-between rounded-xl bg-white px-3 py-2">
+                                <span>{{ child.get_full_name }}</span>
+                                <span class="text-xs text-slate-500">{{ child.admission_no }}</span>
+                            </div>
+                            {% empty %}
+                            <p>No linked children yet.</p>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,116 +1,307 @@
 {% extends 'roles/base.html' %}
 
 {% block role_content %}
-<div class="max-w-4xl">
+<div class="max-w-6xl">
     <div class="mb-6">
         <h2 class="text-xl font-semibold text-gray-800">{{ object|yesno:"Edit Role,Create Role" }}</h2>
+        <p class="mt-1 text-sm text-gray-500">Choose a role name, then enable modules and select the permissions this role should have.</p>
     </div>
 
-    <form method="post" class="bg-white shadow-sm rounded-lg border border-gray-200 p-6">
+    {% if form.non_field_errors %}
+    <div class="mb-4 rounded-lg border border-red-200 bg-red-50 p-4">
+        {% for error in form.non_field_errors %}
+        <p class="text-sm text-red-600">{{ error }}</p>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <form method="post" class="space-y-6">
         {% csrf_token %}
-        
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-            <div>
-                <label for="id_name" class="block text-sm font-medium text-gray-700">Role Name</label>
-                <input type="text" name="name" id="id_name" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm px-3 py-2 border" value="{{ form.name.value|default:'' }}">
-                {% if form.name.errors %}
-                <p class="mt-1 text-sm text-red-600">{{ form.name.errors.0 }}</p>
-                {% endif %}
-            </div>
 
-            <div>
-                <label for="id_priority" class="block text-sm font-medium text-gray-700">Priority</label>
-                <input type="number" name="priority" id="id_priority" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm px-3 py-2 border" value="{{ form.priority.value|default:'0' }}">
-                <p class="mt-1 text-xs text-gray-500">Higher priority roles take precedence</p>
-            </div>
-
-            <div class="md:col-span-2">
-                <label for="id_description" class="block text-sm font-medium text-gray-700">Description</label>
-                <textarea name="description" id="id_description" rows="2" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm px-3 py-2 border">{{ form.description.value|default:'' }}</textarea>
-            </div>
-
-            <div>
-                <div class="flex items-center">
-                    <input type="checkbox" name="is_active" id="id_is_active" class="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded" {% if form.is_active.value %}checked{% endif %}>
-                    <label for="id_is_active" class="ml-2 block text-sm text-gray-900">Active</label>
+        <div class="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+            <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
+                <div>
+                    <label for="id_name" class="block text-sm font-medium text-gray-700">Role Name</label>
+                    <input type="text" name="name" id="id_name" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-primary-500 focus:ring-primary-500" value="{{ form.name.value|default:'' }}" placeholder="e.g. Accounts Manager">
+                    {% if form.name.errors %}
+                    <p class="mt-1 text-sm text-red-600">{{ form.name.errors.0 }}</p>
+                    {% endif %}
                 </div>
-            </div>
 
-            <div>
-                <div class="flex items-center">
-                    <input type="checkbox" name="is_default" id="id_is_default" class="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded" {% if form.is_default.value %}checked{% endif %}>
-                    <label for="id_is_default" class="ml-2 block text-sm text-gray-900">Default role for new users</label>
+                <div>
+                    <label for="id_priority" class="block text-sm font-medium text-gray-700">Priority</label>
+                    <input type="number" name="priority" id="id_priority" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-primary-500 focus:ring-primary-500" value="{{ form.priority.value|default:'0' }}">
+                    <p class="mt-1 text-xs text-gray-500">Higher priority roles can take precedence when a user has multiple roles.</p>
+                </div>
+
+                <div class="md:col-span-2">
+                    <label for="id_description" class="block text-sm font-medium text-gray-700">Description</label>
+                    <textarea name="description" id="id_description" rows="3" class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-primary-500 focus:ring-primary-500" placeholder="Short description for this role">{{ form.description.value|default:'' }}</textarea>
+                    {% if form.description.errors %}
+                    <p class="mt-1 text-sm text-red-600">{{ form.description.errors.0 }}</p>
+                    {% endif %}
+                </div>
+
+                <div class="md:col-span-2 rounded-lg border border-gray-200 bg-gray-50 px-4 py-4">
+                    <div class="flex flex-col gap-4">
+                        <div class="grid gap-4 md:grid-cols-2">
+                            <div class="flex items-center rounded-lg border border-gray-200 bg-white px-4 py-3">
+                                <input type="checkbox" name="is_active" id="id_is_active" class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500" {% if form.is_active.value %}checked{% endif %}>
+                                <label for="id_is_active" class="ml-3 text-sm font-medium text-gray-900">Role is active</label>
+                            </div>
+
+                            <div class="rounded-lg border border-gray-200 bg-white px-4 py-3">
+                                <div class="flex items-start">
+                                    <input type="checkbox" name="is_default" id="id_is_default" class="mt-1 h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500" {% if form.is_default.value %}checked{% endif %}>
+                                    <div class="ml-3">
+                                        <label for="id_is_default" class="text-sm font-medium text-gray-900">Use as default role</label>
+                                        {% if form.is_default.errors %}
+                                        <p class="mt-2 text-sm text-red-600">{{ form.is_default.errors.0 }}</p>
+                                        {% else %}
+                                        <p class="mt-1 text-xs text-gray-500">Auto-assign this role to new users of the selected type.</p>
+                                        {% endif %}
+
+                                        <div id="default-role-type-wrapper" class="mt-3 max-w-sm {% if not form.is_default.value %}hidden{% endif %}">
+                                            <select name="default_for_role" id="id_default_for_role" class="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-primary-500 focus:ring-primary-500">
+                                                <option value="">Select role type</option>
+                                                {% for value, label in form.fields.default_for_role.choices %}
+                                                {% if value %}
+                                                <option value="{{ value }}" {% if form.default_for_role.value == value %}selected{% endif %}>{{ label }}</option>
+                                                {% endif %}
+                                                {% endfor %}
+                                            </select>
+                                            {% if form.default_for_role.errors %}
+                                            <p class="mt-1 text-sm text-red-600">{{ form.default_for_role.errors.0 }}</p>
+                                            {% else %}
+                                            <p class="mt-1 text-xs text-gray-500">Choose which user type gets this role automatically.</p>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <!-- Permissions Section -->
-        <div class="border-t border-gray-200 pt-6">
-            <h3 class="text-lg font-medium text-gray-900 mb-4">Permissions</h3>
-            
-            {% if permissions_by_module %}
-            <div class="space-y-6">
-                {% for module_name, permissions in permissions_by_module.items %}
-                <div class="bg-gray-50 rounded-lg p-4">
-                    <div class="flex items-center justify-between mb-3">
-                        <h4 class="text-sm font-semibold text-gray-900">{{ module_name }}</h4>
-                        <div class="flex items-center gap-2">
-                            <input type="checkbox" id="select_all_{{ forloop.counter }}" class="select-all-permissions" data-group="{{ forloop.counter }}">
-                            <label for="select_all_{{ forloop.counter }}" class="text-xs text-gray-500">Select All</label>
+        <div class="rounded-lg border border-gray-200 bg-white shadow-sm">
+            <div class="border-b border-gray-200 px-6 py-4">
+                <h3 class="text-lg font-medium text-gray-900">Module Permissions</h3>
+                <p class="mt-1 text-sm text-gray-500">Each predefined module includes the default CRUD permissions. Extra custom permissions appear automatically when a module uses them.</p>
+            </div>
+
+            {% if permission_matrix %}
+            <div class="space-y-4 p-6">
+                {% for item in permission_matrix %}
+                <section class="module-permission-card rounded-xl border border-gray-200 bg-gray-50/70 p-5" data-module-card data-module-slug="{{ item.module.slug }}">
+                    <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                        <div class="flex items-start gap-3">
+                            <input
+                                type="checkbox"
+                                id="module_toggle_{{ item.module.id }}"
+                                class="module-toggle mt-1 h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                                data-module-toggle
+                                {% if item.is_selected %}checked{% endif %}
+                            >
+                            <div>
+                                <label for="module_toggle_{{ item.module.id }}" class="text-base font-semibold text-gray-900">{{ item.module.name }}</label>
+                                <p class="mt-1 text-sm text-gray-500">{{ item.module.description|default:"Select this module to manage its permissions in the role." }}</p>
+                                <div class="mt-3 flex flex-wrap gap-2 text-xs">
+                                    <span class="rounded-full bg-white px-3 py-1 font-medium text-gray-600 ring-1 ring-gray-200">{{ item.module.slug }}</span>
+                                    <span class="rounded-full bg-blue-50 px-3 py-1 font-medium text-blue-700 ring-1 ring-blue-200">
+                                        <span data-selected-count>{{ item.selected_count }}</span> selected
+                                    </span>
+                                    {% if item.extra_permissions %}
+                                    <span class="rounded-full bg-amber-50 px-3 py-1 font-medium text-amber-700 ring-1 ring-amber-200">{{ item.extra_permissions|length }} extra</span>
+                                    {% else %}
+                                    <span class="rounded-full bg-emerald-50 px-3 py-1 font-medium text-emerald-700 ring-1 ring-emerald-200">CRUD only</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex flex-wrap gap-2">
+                            <button type="button" class="rounded-md border border-gray-300 bg-white px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50" data-select-core>
+                                Toggle CRUD
+                            </button>
+                            <button type="button" class="rounded-md border border-gray-300 bg-white px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50" data-select-all>
+                                Toggle All
+                            </button>
                         </div>
                     </div>
-                    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                        {% for perm in permissions %}
-                        <div class="flex items-start">
-                            <input type="checkbox" 
-                                   name="permissions" 
-                                   value="{{ perm.id }}" 
-                                   id="perm_{{ perm.id }}"
-                                   class="permission-checkbox mt-1 h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
-                                   data-group="{{ forloop.parentloop.counter }}"
-                                   {% if role_permissions and perm.id in role_permissions %}checked{% endif %}>
-                            <label for="perm_{{ perm.id }}" class="ml-2 block text-sm text-gray-700">
-                                {{ perm.permission_type.name }}
-                            </label>
+
+                    <div class="mt-5 grid gap-5 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
+                        <div class="rounded-lg border border-gray-200 bg-white p-4">
+                            <div class="mb-3 flex items-center justify-between">
+                                <h4 class="text-sm font-semibold text-gray-900">CRUD Permissions</h4>
+                                <span class="text-xs text-gray-500"><span data-selected-core-count>{{ item.selected_core_count }}</span>/{{ item.core_permissions|length }} selected</span>
+                            </div>
+                            <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                                {% for permission in item.core_permissions %}
+                                <label class="flex items-center gap-3 rounded-lg border border-gray-200 px-3 py-3 text-sm text-gray-700 transition hover:border-primary-300 hover:bg-primary-50/40">
+                                    <input
+                                        type="checkbox"
+                                        name="permissions"
+                                        value="{{ permission.id }}"
+                                        class="permission-checkbox h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                                        data-permission-checkbox
+                                        data-core-permission="true"
+                                        {% if permission.selected %}checked{% endif %}
+                                    >
+                                    <span class="font-medium">{{ permission.name }}</span>
+                                </label>
+                                {% endfor %}
+                            </div>
                         </div>
-                        {% endfor %}
+
+                        <div class="rounded-lg border border-gray-200 bg-white p-4">
+                            <div class="mb-3 flex items-center justify-between">
+                                <h4 class="text-sm font-semibold text-gray-900">Extra Permissions</h4>
+                                <span class="text-xs text-gray-500">{{ item.extra_permissions|length }} available</span>
+                            </div>
+                            {% if item.extra_permissions %}
+                            <div class="space-y-2">
+                                {% for permission in item.extra_permissions %}
+                                <label class="flex items-start gap-3 rounded-lg border border-gray-200 px-3 py-3 text-sm text-gray-700 transition hover:border-primary-300 hover:bg-primary-50/40">
+                                    <input
+                                        type="checkbox"
+                                        name="permissions"
+                                        value="{{ permission.id }}"
+                                        class="permission-checkbox mt-1 h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                                        data-permission-checkbox
+                                        {% if permission.selected %}checked{% endif %}
+                                    >
+                                    <span>
+                                        <span class="block font-medium">{{ permission.name }}</span>
+                                        <span class="block text-xs text-gray-500">{{ permission.codename }}</span>
+                                    </span>
+                                </label>
+                                {% endfor %}
+                            </div>
+                            {% else %}
+                            <p class="rounded-lg border border-dashed border-gray-200 px-3 py-4 text-sm text-gray-500">No extra permissions for this module.</p>
+                            {% endif %}
+                        </div>
                     </div>
-                </div>
+                </section>
                 {% endfor %}
             </div>
             {% else %}
-            <div class="bg-yellow-50 border border-yellow-200 rounded-md p-4">
-                <p class="text-sm text-yellow-700">
-                    No modules with permissions found. 
-                    <a href="{% url 'roles:module_create' %}" class="underline">Create a module</a> first.
-                </p>
+            <div class="p-6">
+                <div class="rounded-lg border border-yellow-200 bg-yellow-50 p-4">
+                    <p class="text-sm text-yellow-700">
+                        No modules found yet.
+                        <a href="{% url 'roles:module_create' %}" class="font-medium underline">Create a predefined module first</a>.
+                    </p>
+                </div>
             </div>
             {% endif %}
         </div>
 
-        <div class="mt-6 flex justify-end gap-3">
-            <a href="{% url 'roles:role_list' %}" class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">Cancel</a>
-            <button type="submit" class="px-4 py-2 bg-primary-600 border border-transparent rounded-md text-sm font-medium text-white hover:bg-primary-700">
-                {{ object|yesno:"Update,Create" }}
+        <div class="flex justify-end gap-3">
+            <a href="{% url 'roles:role_list' %}" class="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">Cancel</a>
+            <button type="submit" class="rounded-md border border-transparent bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700">
+                {{ object|yesno:"Update Role,Create Role" }}
             </button>
         </div>
     </form>
 </div>
+{% endblock %}
 
 {% block extra_js %}
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Select all functionality
-    document.querySelectorAll('.select-all-permissions').forEach(function(checkbox) {
-        checkbox.addEventListener('change', function() {
-            const group = this.getAttribute('data-group');
-            const checked = this.checked;
-            document.querySelectorAll('.permission-checkbox[data-group="' + group + '"]').forEach(function(perm) {
-                perm.checked = checked;
+document.addEventListener('DOMContentLoaded', function () {
+    const defaultRoleToggle = document.getElementById('id_is_default');
+    const defaultRoleTypeWrapper = document.getElementById('default-role-type-wrapper');
+    const defaultRoleTypeSelect = document.getElementById('id_default_for_role');
+    const moduleCards = document.querySelectorAll('[data-module-card]');
+
+    function syncDefaultRoleField() {
+        if (!defaultRoleToggle || !defaultRoleTypeWrapper) {
+            return;
+        }
+
+        if (defaultRoleToggle.checked) {
+            defaultRoleTypeWrapper.classList.remove('hidden');
+        } else {
+            defaultRoleTypeWrapper.classList.add('hidden');
+            if (defaultRoleTypeSelect) {
+                defaultRoleTypeSelect.value = '';
+            }
+        }
+    }
+
+    if (defaultRoleToggle) {
+        defaultRoleToggle.addEventListener('change', syncDefaultRoleField);
+        syncDefaultRoleField();
+    }
+
+    function syncCard(card) {
+        const moduleToggle = card.querySelector('[data-module-toggle]');
+        const allPermissions = [...card.querySelectorAll('[data-permission-checkbox]')];
+        const corePermissions = allPermissions.filter((checkbox) => checkbox.dataset.corePermission === 'true');
+        const selectedPermissions = allPermissions.filter((checkbox) => checkbox.checked);
+        const selectedCorePermissions = corePermissions.filter((checkbox) => checkbox.checked);
+        const selectedCount = card.querySelector('[data-selected-count]');
+        const selectedCoreCount = card.querySelector('[data-selected-core-count]');
+
+        if (moduleToggle) {
+            moduleToggle.checked = selectedPermissions.length > 0;
+            moduleToggle.indeterminate = selectedPermissions.length > 0 && selectedPermissions.length < allPermissions.length;
+        }
+
+        if (selectedCount) {
+            selectedCount.textContent = selectedPermissions.length;
+        }
+
+        if (selectedCoreCount) {
+            selectedCoreCount.textContent = selectedCorePermissions.length;
+        }
+    }
+
+    moduleCards.forEach(function (card) {
+        const moduleToggle = card.querySelector('[data-module-toggle]');
+        const allPermissions = [...card.querySelectorAll('[data-permission-checkbox]')];
+        const corePermissions = allPermissions.filter((checkbox) => checkbox.dataset.corePermission === 'true');
+        const selectAllButton = card.querySelector('[data-select-all]');
+        const selectCoreButton = card.querySelector('[data-select-core]');
+
+        function setPermissions(checkboxes, checked) {
+            checkboxes.forEach(function (checkbox) {
+                checkbox.checked = checked;
+            });
+            syncCard(card);
+        }
+
+        if (moduleToggle) {
+            moduleToggle.addEventListener('change', function () {
+                setPermissions(allPermissions, moduleToggle.checked);
+            });
+        }
+
+        if (selectAllButton) {
+            selectAllButton.addEventListener('click', function () {
+                const allSelected = allPermissions.length > 0 && allPermissions.every((checkbox) => checkbox.checked);
+                setPermissions(allPermissions, !allSelected);
+            });
+        }
+
+        if (selectCoreButton) {
+            selectCoreButton.addEventListener('click', function () {
+                const coreSelected = corePermissions.length > 0 && corePermissions.every((checkbox) => checkbox.checked);
+                setPermissions(corePermissions, !coreSelected);
+            });
+        }
+
+        allPermissions.forEach(function (checkbox) {
+            checkbox.addEventListener('change', function () {
+                syncCard(card);
             });
         });
+
+        syncCard(card);
     });
 });
 </script>
-{% endblock %}
 {% endblock %}

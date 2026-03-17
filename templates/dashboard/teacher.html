@@ -1,142 +1,158 @@
 {% extends 'base.html' %}
+{% load permission_tags %}
 
 {% block title %}Dashboard - Teacher{% endblock %}
 
 {% block content %}
-<!-- Page Header -->
-<div class="mb-8">
-    <h1 class="text-2xl font-bold text-gray-800">Teacher Dashboard</h1>
-    <p class="text-gray-600">Welcome back, {{ user.get_full_name }}!</p>
-</div>
-
-<!-- Teacher Info Card -->
-{% if teacher %}
-<div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100 mb-8">
-    <div class="flex items-center justify-between">
-        <div>
-            <h2 class="text-lg font-semibold text-gray-800">{{ teacher.user.get_full_name }}</h2>
-            <p class="text-gray-600">Employee ID: {{ teacher.employee_id }}</p>
-            <p class="text-gray-600">Department: {{ teacher.department|default:"N/A" }}</p>
-            {% if academic_year %}
-            <p class="text-gray-500 text-sm">Academic Year: {{ academic_year.name }}</p>
+<div class="space-y-8">
+    <section class="overflow-hidden rounded-[2rem] border border-slate-200 bg-[radial-gradient(circle_at_top_left,_rgba(14,165,233,0.18),_transparent_30%),linear-gradient(135deg,#ffffff_0%,#f8fafc_55%,#ecfeff_100%)] p-8 shadow-sm">
+        <div class="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+                <p class="text-xs font-semibold uppercase tracking-[0.25em] text-sky-700">Teaching Hub</p>
+                <h1 class="mt-3 text-3xl font-bold tracking-tight text-slate-900 md:text-4xl">Teacher Dashboard</h1>
+                <p class="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
+                    Stay on top of today’s classes, active assignments, and upcoming teaching work from one focused workspace.
+                </p>
+            </div>
+            {% if teacher %}
+            <div class="rounded-3xl border border-white/80 bg-white/80 px-5 py-4 shadow-sm backdrop-blur">
+                <p class="text-xs uppercase tracking-[0.2em] text-slate-500">Profile</p>
+                <p class="mt-2 text-lg font-semibold text-slate-900">{{ teacher.user.get_full_name }}</p>
+                <p class="text-sm text-slate-600">{{ teacher.employee_id }} • {{ teacher.get_designation_display }}</p>
+                {% if academic_year %}
+                <p class="mt-1 text-xs text-slate-500">{{ academic_year.name }}</p>
+                {% endif %}
+            </div>
             {% endif %}
         </div>
-        <div class="w-14 h-14 bg-blue-100 rounded-xl flex items-center justify-center">
-            <i class="fas fa-chalkboard-teacher text-2xl text-blue-600"></i>
-        </div>
-    </div>
-</div>
-{% endif %}
+    </section>
 
-<!-- Stats Grid -->
-<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-    <!-- Classes Taught -->
-    <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-        <div class="flex items-center justify-between">
-            <div>
-                <p class="text-sm text-gray-500">Classes Teaching</p>
-                <p class="text-3xl font-bold text-gray-800">{{ classes_taught|length }}</p>
-                <p class="text-xs text-gray-500 mt-1">Active classes</p>
+    <section class="grid gap-5 md:grid-cols-3">
+        <article class="rounded-3xl border border-indigo-200 bg-indigo-50/80 p-6 shadow-sm">
+            <div class="flex items-start justify-between">
+                <div>
+                    <p class="text-sm font-medium text-indigo-800">Classes Teaching</p>
+                    <p class="mt-3 text-4xl font-bold text-indigo-950">{{ classes_taught|length }}</p>
+                    <p class="mt-2 text-sm text-indigo-700">Active subject assignments this year</p>
+                </div>
+                <div class="flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-indigo-600 shadow-sm">
+                    <i class="fas fa-book-open text-2xl"></i>
+                </div>
             </div>
-            <div class="w-14 h-14 bg-indigo-100 rounded-xl flex items-center justify-center">
-                <i class="fas fa-books text-2xl text-indigo-600"></i>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Pending Grades -->
-    <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-        <div class="flex items-center justify-between">
-            <div>
-                <p class="text-sm text-gray-500">Pending Grades</p>
-                <p class="text-3xl font-bold text-gray-800">{{ pending_grades }}</p>
-                <p class="text-xs text-gray-500 mt-1">To be entered</p>
-            </div>
-            <div class="w-14 h-14 bg-yellow-100 rounded-xl flex items-center justify-center">
-                <i class="fas fa-pen text-2xl text-yellow-600"></i>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Today's Timetable -->
-    <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-        <div class="flex items-center justify-between">
-            <div>
-                <p class="text-sm text-gray-500">Today's Classes</p>
-                <p class="text-3xl font-bold text-gray-800">{{ today_timetable|length }}</p>
-                <p class="text-xs text-gray-500 mt-1">Scheduled today</p>
-            </div>
-            <div class="w-14 h-14 bg-green-100 rounded-xl flex items-center justify-center">
-                <i class="fas fa-clock text-2xl text-green-600"></i>
-            </div>
-        </div>
-    </div>
-</div>
+        </article>
 
-<!-- Classes Taught -->
-<div class="bg-white rounded-xl shadow-sm border border-gray-100 mb-8">
-    <div class="p-6 border-b border-gray-100">
-        <h2 class="text-lg font-semibold text-gray-800">Classes Teaching</h2>
-    </div>
-    <div class="p-6">
-        {% if classes_taught %}
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {% for assignment in classes_taught %}
-            <div class="border border-gray-100 rounded-lg p-4">
-                <h3 class="font-semibold text-gray-800">{{ assignment.subject.name }}</h3>
-                <p class="text-gray-600 text-sm">{{ assignment.section.class_level.name }} - {{ assignment.section.name }}</p>
-                <p class="text-gray-500 text-xs mt-2">{{ assignment.subject.code }}</p>
+        <article class="rounded-3xl border border-amber-200 bg-amber-50/80 p-6 shadow-sm">
+            <div class="flex items-start justify-between">
+                <div>
+                    <p class="text-sm font-medium text-amber-800">Pending Grades</p>
+                    <p class="mt-3 text-4xl font-bold text-amber-950">{{ pending_grades }}</p>
+                    <p class="mt-2 text-sm text-amber-700">Grade entries waiting to be completed</p>
+                </div>
+                <div class="flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-amber-600 shadow-sm">
+                    <i class="fas fa-pen-to-square text-2xl"></i>
+                </div>
             </div>
-            {% endfor %}
-        </div>
-        {% else %}
-        <p class="text-gray-500 text-center py-4">No class assignments found.</p>
-        {% endif %}
-    </div>
-</div>
+        </article>
 
-<!-- Today's Timetable -->
-<div class="bg-white rounded-xl shadow-sm border border-gray-100">
-    <div class="p-6 border-b border-gray-100">
-        <h2 class="text-lg font-semibold text-gray-800">Today's Timetable</h2>
-    </div>
-    <div class="p-6">
-        {% if today_timetable %}
-        <div class="overflow-x-auto">
-            <table class="w-full">
-                <thead>
-                    <tr class="text-left">
-                        <th class="pb-3 text-sm font-medium text-gray-500">Time</th>
-                        <th class="pb-3 text-sm font-medium text-gray-500">Subject</th>
-                        <th class="pb-3 text-sm font-medium text-gray-500">Class</th>
-                        <th class="pb-3 text-sm font-medium text-gray-500">Room</th>
-                        <th class="pb-3 text-sm font-medium text-gray-500">Status</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for item in today_timetable %}
-                    <tr class="border-t border-gray-100 {% if item.status == 'upcoming' %}bg-red-50{% elif item.status == 'completed' %}bg-green-50{% elif item.status == 'ongoing' %}bg-blue-50{% endif %}">
-                        <td class="py-3">{{ item.start_time }} - {{ item.end_time }}</td>
-                        <td class="py-3">{{ item.slot.subject.name }}</td>
-                        <td class="py-3">{{ item.slot.section.class_level.name }} - {{ item.slot.section.name }}</td>
-                        <td class="py-3">{{ item.slot.room|default:"N/A" }}</td>
-                        <td class="py-3">
-                            {% if item.status == 'upcoming' %}
-                            <span class="px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">Upcoming</span>
-                            {% elif item.status == 'completed' %}
-                            <span class="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">Completed</span>
-                            {% elif item.status == 'ongoing' %}
-                            <span class="px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">Ongoing</span>
-                            {% endif %}
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+        <article class="rounded-3xl border border-emerald-200 bg-emerald-50/80 p-6 shadow-sm">
+            <div class="flex items-start justify-between">
+                <div>
+                    <p class="text-sm font-medium text-emerald-800">Today’s Classes</p>
+                    <p class="mt-3 text-4xl font-bold text-emerald-950">{{ today_timetable|length }}</p>
+                    <p class="mt-2 text-sm text-emerald-700">Sessions scheduled for today</p>
+                </div>
+                <div class="flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-emerald-600 shadow-sm">
+                    <i class="fas fa-clock text-2xl"></i>
+                </div>
+            </div>
+        </article>
+    </section>
+
+    <section class="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
+        <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div class="mb-6">
+                <p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Assignments</p>
+                <h2 class="mt-1 text-xl font-semibold text-slate-900">Classes You Teach</h2>
+            </div>
+            <div class="space-y-3">
+                {% for assignment in classes_taught %}
+                <div class="rounded-2xl border border-slate-100 p-4">
+                    <div class="flex items-start justify-between gap-3">
+                        <div>
+                            <p class="font-semibold text-slate-900">{{ assignment.subject.name }}</p>
+                            <p class="mt-1 text-sm text-slate-600">{{ assignment.section.class_level.name }} - {{ assignment.section.name }}</p>
+                        </div>
+                        <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">{{ assignment.subject.code }}</span>
+                    </div>
+                </div>
+                {% empty %}
+                <p class="rounded-2xl border border-dashed border-slate-200 px-4 py-10 text-center text-sm text-slate-500">No class assignments found for this teacher.</p>
+                {% endfor %}
+            </div>
         </div>
-        {% else %}
-        <p class="text-gray-500 text-center py-4">No classes scheduled for today.</p>
-        {% endif %}
-    </div>
+
+        <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div class="mb-6 flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Schedule</p>
+                    <h2 class="mt-1 text-xl font-semibold text-slate-900">Today’s Timetable</h2>
+                </div>
+                {% if user|has_permission:'academics.view' %}
+                <a href="{% url 'academics:timetable' %}" class="text-sm font-medium text-primary-600 hover:text-primary-700">Open timetable</a>
+                {% endif %}
+            </div>
+
+            <div class="space-y-3">
+                {% for item in today_timetable %}
+                <div class="rounded-2xl border p-4 {% if item.status == 'ongoing' %}border-sky-200 bg-sky-50{% elif item.status == 'completed' %}border-emerald-200 bg-emerald-50{% else %}border-amber-200 bg-amber-50{% endif %}">
+                    <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                        <div>
+                            <p class="font-semibold text-slate-900">{{ item.slot.subject.name }}</p>
+                            <p class="mt-1 text-sm text-slate-600">{{ item.slot.section.class_level.name }} - {{ item.slot.section.name }}</p>
+                            <p class="mt-1 text-xs text-slate-500">{{ item.start_time }} - {{ item.end_time }}</p>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <span class="rounded-full px-3 py-1 text-xs font-semibold {% if item.status == 'ongoing' %}bg-sky-600 text-white{% elif item.status == 'completed' %}bg-emerald-600 text-white{% else %}bg-amber-600 text-white{% endif %}">
+                                {{ item.status|title }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                {% empty %}
+                <p class="rounded-2xl border border-dashed border-slate-200 px-4 py-10 text-center text-sm text-slate-500">No classes scheduled for today.</p>
+                {% endfor %}
+            </div>
+        </div>
+    </section>
+
+    <section class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div class="mb-6">
+            <p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Shortcuts</p>
+            <h2 class="mt-1 text-xl font-semibold text-slate-900">Teaching Actions</h2>
+        </div>
+        <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {% if user|has_permission:'examinations.edit' or user|has_permission:'examinations.add' %}
+            <a href="{% url 'examinations:grade_entry' %}" class="rounded-2xl border border-slate-200 p-5 transition hover:-translate-y-0.5 hover:border-amber-300 hover:shadow-md">
+                <i class="fas fa-marker text-2xl text-amber-600"></i>
+                <p class="mt-4 font-semibold text-slate-900">Enter Grades</p>
+                <p class="mt-1 text-sm text-slate-600">Record marks and academic performance.</p>
+            </a>
+            {% endif %}
+            {% if user|has_permission:'attendance.mark' %}
+            <a href="{% url 'attendance:mark' %}" class="rounded-2xl border border-slate-200 p-5 transition hover:-translate-y-0.5 hover:border-sky-300 hover:shadow-md">
+                <i class="fas fa-clipboard-check text-2xl text-sky-600"></i>
+                <p class="mt-4 font-semibold text-slate-900">Mark Attendance</p>
+                <p class="mt-1 text-sm text-slate-600">Capture attendance for your assigned classes.</p>
+            </a>
+            {% endif %}
+            {% if user|has_permission:'academics.view' %}
+            <a href="{% url 'academics:timetable' %}" class="rounded-2xl border border-slate-200 p-5 transition hover:-translate-y-0.5 hover:border-indigo-300 hover:shadow-md">
+                <i class="fas fa-calendar-days text-2xl text-indigo-600"></i>
+                <p class="mt-4 font-semibold text-slate-900">View Timetable</p>
+                <p class="mt-1 text-sm text-slate-600">Check sections, periods, and subject flow.</p>
+            </a>
+            {% endif %}
+        </div>
+    </section>
 </div>
 {% endblock %}

@@ -2,6 +2,7 @@ from django import forms
 from django.contrib.auth import get_user_model
 
 from .models import Module, PermissionType, Role, RolePermission, UserRole
+from .services import CORE_PERMISSION_TYPES
 
 User = get_user_model()
 
@@ -9,9 +10,20 @@ User = get_user_model()
 class ModuleForm(forms.ModelForm):
     """Form for creating and editing modules."""
 
+    permissions = forms.MultipleChoiceField(
+        required=False,
+        choices=[
+            (code, f"can_{code}")
+            for code, _label in CORE_PERMISSION_TYPES
+        ],
+        widget=forms.CheckboxSelectMultiple,
+        label="Permissions",
+    )
+
     class Meta:
         model = Module
         fields = ["name", "slug", "description", "icon", "is_active", "order"]
+
         widgets = {
             "name": forms.TextInput(
                 attrs={"class": "form-control", "placeholder": "Module name"}
@@ -39,6 +51,38 @@ class ModuleForm(forms.ModelForm):
                 attrs={"class": "form-control", "placeholder": "Display order"}
             ),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.instance.pk:
+            self.fields["permissions"].initial = list(
+                self.instance.permission_types.values_list("codename", flat=True)
+            )
+
+    def save(self, commit=True):
+        module = super().save(commit=commit)
+        if commit:
+            self.save_permissions(module)
+        return module
+
+    def save_permissions(self, module):
+        selected_permissions = set(self.cleaned_data.get("permissions", []))
+        existing_permissions = {
+            permission.codename: permission
+            for permission in module.permission_types.all()
+        }
+
+        for order, (code, label) in enumerate(CORE_PERMISSION_TYPES):
+            permission = existing_permissions.get(code)
+            if code in selected_permissions and permission is None:
+                PermissionType.objects.create(
+                    module=module,
+                    name=label,
+                    codename=code,
+                    order=order,
+                )
+            elif code not in selected_permissions and permission is not None:
+                permission.delete()
 
 
 class PermissionTypeForm(forms.ModelForm):
@@ -73,7 +117,14 @@ class RoleForm(forms.ModelForm):
 
     class Meta:
         model = Role
-        fields = ["name", "description", "is_active", "is_default", "priority"]
+        fields = [
+            "name",
+            "description",
+            "is_active",
+            "is_default",
+            "default_for_role",
+            "priority",
+        ]
         widgets = {
             "name": forms.TextInput(
                 attrs={"class": "form-control", "placeholder": "Role name"}
@@ -91,6 +142,9 @@ class RoleForm(forms.ModelForm):
             "is_default": forms.CheckboxInput(
                 attrs={"class": "form-check-input"}
             ),
+            "default_for_role": forms.Select(
+                attrs={"class": "form-select"}
+            ),
             "priority": forms.NumberInput(
                 attrs={
                     "class": "form-control",
@@ -99,37 +153,35 @@ class RoleForm(forms.ModelForm):
             ),
         }
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        # Group permissions by module for the form
-        self.fields["permission_queryset"] = forms.ModelMultipleChoiceField(
-            queryset=RolePermission.objects.select_related(
-                "module", "permission_type"
-            ).all(),
-            required=False,
-            widget=forms.CheckboxSelectMultiple(
-                attrs={"class": "permission-checkbox"}
-            ),
-            label="Permissions",
-        )
-
-    def _init_helper(self):
-        """Initialize helper for permissions display."""
-        self.permissions_by_module = {}
-        all_role_permissions = RolePermission.objects.select_related(
-            "module", "permission_type"
-        ).all()
-        for rp in all_role_permissions:
-            module_name = rp.module.name
-            if module_name not in self.permissions_by_module:
-                self.permissions_by_module[module_name] = []
-            self.permissions_by_module[module_name].append(rp)
-
     def clean(self):
         cleaned_data = super().clean()
-        # Handle permissions
-        perm_ids = self.data.getlist("permissions")
-        cleaned_data["permissions"] = perm_ids
+        is_default = cleaned_data.get("is_default")
+        default_for_role = cleaned_data.get("default_for_role")
+
+        if is_default and not default_for_role:
+            self.add_error(
+                "default_for_role",
+                "Please select which user type should receive this default role.",
+            )
+
+        if is_default and default_for_role:
+            existing_default_roles = Role.objects.filter(
+                is_default=True,
+                default_for_role=default_for_role,
+            )
+            if self.instance.pk:
+                existing_default_roles = existing_default_roles.exclude(
+                    pk=self.instance.pk
+                )
+            if existing_default_roles.exists():
+                self.add_error(
+                    "default_for_role",
+                    "Only one default role can be set for this user type.",
+                )
+
+        if not is_default:
+            cleaned_data["default_for_role"] = ""
+
         return cleaned_data
 
 

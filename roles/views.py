@@ -19,7 +19,11 @@ from .forms import (
     UserRoleAssignmentForm,
 )
 from .decorators import PermissionRequiredMixin
-from .models import Module, PermissionType, Role, RolePermission, UserRole
+from .models import Module, PermissionType, Role, UserRole
+from .services import (
+    get_role_permission_matrix,
+    save_role_permissions,
+)
 
 User = get_user_model()
 
@@ -49,6 +53,11 @@ class ModuleListView(LoginRequiredMixin, ManageRolesPermissionMixin, ListView):
     template_name = "roles/modules/list.html"
     context_object_name = "modules"
     ordering = ["order", "name"]
+    
+    def get_queryset(self):
+        return Module.objects.prefetch_related("permission_types").order_by(
+            "order", "name"
+        )
 
 
 class ModuleCreateView(
@@ -62,8 +71,9 @@ class ModuleCreateView(
     success_url = reverse_lazy("roles:module_list")
 
     def form_valid(self, form):
+        response = super().form_valid(form)
         messages.success(self.request, "Module created successfully!")
-        return super().form_valid(form)
+        return response
 
 
 class ModuleUpdateView(
@@ -77,8 +87,9 @@ class ModuleUpdateView(
     success_url = reverse_lazy("roles:module_list")
 
     def form_valid(self, form):
+        response = super().form_valid(form)
         messages.success(self.request, "Module updated successfully!")
-        return super().form_valid(form)
+        return response
 
 
 class ModuleDeleteView(
@@ -107,6 +118,11 @@ class PermissionTypeListView(
     template_name = "roles/permissions/list.html"
     context_object_name = "permission_types"
     ordering = ["module__order", "module__name", "order"]
+
+    def get_queryset(self):
+        return PermissionType.objects.select_related("module").order_by(
+            "module__order", "module__name", "order"
+        )
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -219,40 +235,14 @@ class RoleCreateView(
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["permissions_by_module"] = self.get_permissions_by_module()
+        context["permission_matrix"] = get_role_permission_matrix()
         return context
-
-    def get_permissions_by_module(self):
-        """Group permissions by module."""
-        permissions_by_module = {}
-        modules = Module.objects.filter(is_active=True).prefetch_related(
-            "permission_types"
-        )
-        for module in modules:
-            perm_types = module.permission_types.all()
-            if perm_types:
-                role_perms = []
-                for pt in perm_types:
-                    rp, created = RolePermission.objects.get_or_create(
-                        module=module, permission_type=pt
-                    )
-                    role_perms.append(rp)
-                permissions_by_module[module.name] = role_perms
-        return permissions_by_module
 
     def form_valid(self, form):
         role = form.save(commit=False)
         role.created_by = self.request.user
         role.save()
-
-        # Save permissions
-        perm_ids = self.request.POST.getlist("permissions")
-        for perm_id in perm_ids:
-            try:
-                rp = RolePermission.objects.get(id=perm_id)
-                role.permissions.add(rp)
-            except RolePermission.DoesNotExist:
-                pass
+        save_role_permissions(role, self.request.POST.getlist("permissions"))
 
         messages.success(
             self.request, f'Role "{role.name}" created successfully!'
@@ -272,42 +262,14 @@ class RoleUpdateView(
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["permissions_by_module"] = self.get_permissions_by_module()
-        context["role_permissions"] = self.get_object().permissions.values_list(
-            "id", flat=True
+        context["permission_matrix"] = get_role_permission_matrix(
+            self.get_object()
         )
         return context
 
-    def get_permissions_by_module(self):
-        """Group permissions by module."""
-        permissions_by_module = {}
-        modules = Module.objects.filter(is_active=True).prefetch_related(
-            "permission_types"
-        )
-        for module in modules:
-            perm_types = module.permission_types.all()
-            if perm_types:
-                role_perms = []
-                for pt in perm_types:
-                    rp, created = RolePermission.objects.get_or_create(
-                        module=module, permission_type=pt
-                    )
-                    role_perms.append(rp)
-                permissions_by_module[module.name] = role_perms
-        return permissions_by_module
-
     def form_valid(self, form):
         role = form.save()
-
-        # Update permissions
-        role.permissions.clear()
-        perm_ids = self.request.POST.getlist("permissions")
-        for perm_id in perm_ids:
-            try:
-                rp = RolePermission.objects.get(id=perm_id)
-                role.permissions.add(rp)
-            except RolePermission.DoesNotExist:
-                pass
+        save_role_permissions(role, self.request.POST.getlist("permissions"))
 
         messages.success(
             self.request, f'Role "{role.name}" updated successfully!'
@@ -340,6 +302,26 @@ class RoleDetailView(
     model = Role
     template_name = "roles/roles/detail.html"
     context_object_name = "role"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        grouped_permissions = []
+        modules = {}
+
+        for permission in context["role"].permissions.select_related(
+            "module", "permission_type"
+        ).order_by("module__order", "module__name", "permission_type__order"):
+            module_id = permission.module_id
+            if module_id not in modules:
+                modules[module_id] = {
+                    "module": permission.module,
+                    "permissions": [],
+                }
+            modules[module_id]["permissions"].append(permission)
+
+        grouped_permissions.extend(modules.values())
+        context["grouped_permissions"] = grouped_permissions
+        return context
 
 
 # ==================== User Role Assignment Views ====================

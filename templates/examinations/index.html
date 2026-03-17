@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load permission_tags %}
 
 {% block title %}Examinations - School Management System{% endblock %}
 
@@ -9,6 +10,13 @@
         <h1 class="text-2xl font-bold text-gray-800">Examinations</h1>
         <p class="text-gray-600">Manage grades, exams, and report cards</p>
     </div>
+    {% if user|has_permission:'examinations.add' %}
+    <div class="mt-4 md:mt-0">
+        <a href="{% url 'examinations:exam_type_create' %}" class="inline-flex items-center px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors">
+            <i class="fas fa-plus mr-2"></i> Create Exam Type
+        </a>
+    </div>
+    {% endif %}
 </div>
 
 {% if not academic_year %}
@@ -37,11 +45,11 @@
     <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
         <div class="flex items-center">
             <div class="p-3 bg-green-100 rounded-lg">
-                <i class="fas fa-clock text-2xl text-green-600"></i>
+                <i class="fas fa-layer-group text-2xl text-green-600"></i>
             </div>
             <div class="ml-4">
-                <p class="text-sm font-medium text-gray-500">Upcoming Exams</p>
-                <p class="text-2xl font-bold text-gray-900">{{ upcoming_exams.count }}</p>
+                <p class="text-sm font-medium text-gray-500">Exam Types</p>
+                <p class="text-2xl font-bold text-gray-900">{{ total_exam_types }}</p>
             </div>
         </div>
     </div>
@@ -52,8 +60,8 @@
                 <i class="fas fa-file-alt text-2xl text-purple-600"></i>
             </div>
             <div class="ml-4">
-                <p class="text-sm font-medium text-gray-500">Report Cards</p>
-                <p class="text-2xl font-bold text-gray-900">-</p>
+                <p class="text-sm font-medium text-gray-500">Upcoming Exams</p>
+                <p class="text-2xl font-bold text-gray-900">{{ upcoming_exams.count }}</p>
             </div>
         </div>
     </div>
@@ -61,6 +69,19 @@
 
 <!-- Quick Links -->
 <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <div class="flex items-center mb-4">
+            <div class="p-3 bg-indigo-100 rounded-lg">
+                <i class="fas fa-layer-group text-xl text-indigo-600"></i>
+            </div>
+            <h3 class="ml-3 text-lg font-semibold text-gray-800">Exam Types</h3>
+        </div>
+        <p class="text-gray-600 mb-4">Create exam types like Mid Term, Final, Quiz, or Practical.</p>
+        <a href="{% url 'examinations:exam_type_create' %}" class="inline-flex items-center text-primary-600 hover:text-primary-800">
+            Manage Exam Types <i class="fas fa-arrow-right ml-2"></i>
+        </a>
+    </div>
+
     <!-- Grades -->
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
         <div class="flex items-center mb-4">

@@ -2,6 +2,7 @@ from datetime import date, timedelta
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AnonymousUser
+from django.core.management import call_command
 from django.http import HttpResponse
 from django.template import Context, Template
 from django.test import Client, TestCase, override_settings
@@ -12,6 +13,7 @@ from django.views import View
 from roles.decorators import PermissionRequiredMixin, permission_required
 from roles.middleware import PermissionContext
 from roles.models import Module, PermissionType, Role, RolePermission, UserRole
+from roles.services import CORE_PERMISSION_CODES
 from students.models import AcademicYear, ClassLevel, Section, Student
 
 User = get_user_model()
@@ -356,6 +358,100 @@ class PermissionIntegrationTests(PermissionTestMixin, TestCase):
         )
         response = self.client.get(reverse("roles:role_list"))
         self.assertEqual(response.status_code, 200)
+
+
+class RoleManagementWorkflowTests(PermissionTestMixin, TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.admin_user = self.create_user("rbac_admin", role="admin")
+
+    def test_module_create_view_uses_selected_crud_permissions(self):
+        self.client.force_login(self.admin_user)
+
+        response = self.client.post(
+            reverse("roles:module_create"),
+            {
+                "name": "Inventory",
+                "slug": "inventory",
+                "description": "Inventory module",
+                "icon": "fa fa-box",
+                "is_active": "on",
+                "order": 12,
+                "permissions": ["view", "add", "delete"],
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        module = Module.objects.get(slug="inventory")
+        self.assertEqual(
+            set(module.permission_types.values_list("codename", flat=True)),
+            {"view", "add", "delete"},
+        )
+
+    def test_role_create_view_saves_selected_permissions(self):
+        self.client.force_login(self.admin_user)
+        self.client.post(
+            reverse("roles:module_create"),
+            {
+                "name": "Inventory",
+                "slug": "inventory",
+                "description": "Inventory module",
+                "icon": "fa fa-box",
+                "is_active": "on",
+                "order": 12,
+                "permissions": ["view", "edit"],
+            },
+        )
+        module = Module.objects.get(name="Inventory")
+        view_permission_type = PermissionType.objects.get(module=module, codename="view")
+        edit_permission_type = PermissionType.objects.get(module=module, codename="edit")
+        view_permission, _ = RolePermission.objects.get_or_create(
+            module=module,
+            permission_type=view_permission_type,
+        )
+        edit_permission, _ = RolePermission.objects.get_or_create(
+            module=module,
+            permission_type=edit_permission_type,
+        )
+
+        response = self.client.post(
+            reverse("roles:role_create"),
+            {
+                "name": "Inventory Manager",
+                "description": "Can review and update inventory",
+                "is_active": "on",
+                "priority": 5,
+                "permissions": [
+                    str(view_permission.id),
+                    str(edit_permission.id),
+                ],
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        role = Role.objects.get(name="Inventory Manager")
+        self.assertEqual(
+            set(role.permissions.values_list("id", flat=True)),
+            {view_permission.id, edit_permission.id},
+        )
+
+    def test_create_fixed_modules_command_is_safe_to_rerun(self):
+        call_command("create_fixed_modules")
+        initial_count = Module.objects.count()
+
+        self.assertTrue(Module.objects.filter(slug="students").exists())
+        self.assertTrue(
+            CORE_PERMISSION_CODES.issubset(
+                set(
+                    Module.objects.get(
+                        slug="students"
+                    ).permission_types.values_list("codename", flat=True)
+                )
+            )
+        )
+
+        call_command("create_fixed_modules")
+        self.assertEqual(Module.objects.count(), initial_count)
 
 
 @override_settings(ROOT_URLCONF=__name__)

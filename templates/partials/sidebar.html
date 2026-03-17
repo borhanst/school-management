@@ -157,6 +157,11 @@
         </button>
         <div x-show="openMenu === 'examinations'" x-collapse class="ml-4 mt-1 space-y-1">
             {% if user|has_permission:'examinations.view' %}
+            {% if user|has_role:'student' %}
+            <a href="{% url 'examinations:my_exams' %}" class="flex items-center px-4 py-2 text-sm text-gray-600 rounded-lg hover:bg-gray-100">
+                <i class="fas fa-calendar w-5"></i> My Exam Schedule
+            </a>
+            {% else %}
             <a href="{% url 'examinations:grades' %}" class="flex items-center px-4 py-2 text-sm text-gray-600 rounded-lg hover:bg-gray-100">
                 <i class="fas fa-star w-5"></i> Grades
             </a>
@@ -166,6 +171,7 @@
             <a href="{% url 'examinations:report_card' %}" class="flex items-center px-4 py-2 text-sm text-gray-600 rounded-lg hover:bg-gray-100">
                 <i class="fas fa-file-alt w-5"></i> Report Cards
             </a>
+            {% endif %}
             {% endif %}
         </div>
     </div>

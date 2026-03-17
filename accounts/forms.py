@@ -1,6 +1,8 @@
 from django import forms
 from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
 
+from roles.services import assign_default_role_to_user
+
 from .models import ParentProfile, TeacherProfile, User
 
 
@@ -123,6 +125,7 @@ class UserRegistrationForm(UserCreationForm):
 
         if commit:
             user.save()
+            assign_default_role_to_user(user)
 
         return user
 

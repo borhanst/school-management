@@ -1,17 +1,19 @@
 from django.contrib.auth.decorators import login_required
-from django.db.models import Count, Q, Sum
+from django.db.models import Count, Sum
 from django.shortcuts import render
 from django.utils import timezone
 
 from academics.models import Timetable
 from attendance.models import Attendance
-from examinations.models import Grade
+from examinations.models import ExamSchedule, Grade
 from fees.models import FeeInvoice, FeePayment
 from library.models import BookIssue
+from roles.decorators import permission_required
 from students.models import AcademicYear, ClassLevel, Student
 
 
 @login_required
+@permission_required("dashboard", "view")
 def dashboard_index(request):
     """Dashboard index view."""
     user = request.user
@@ -236,6 +238,9 @@ def get_student_dashboard(user, academic_year):
     fee_invoices = FeeInvoice.objects.filter(
         student=student, academic_year=academic_year
     )
+    total_due_amount = (
+        fee_invoices.aggregate(total=Sum("due_amount"))["total"] or 0
+    )
 
     # Class Timetable
     if academic_year and student.section:
@@ -293,6 +298,7 @@ def get_student_dashboard(user, academic_year):
         "attendance_percentage": attendance_percentage,
         "grades": grades,
         "fee_invoices": fee_invoices,
+        "total_due_amount": total_due_amount,
         "timetable": timetable,
         "timetable_by_day": timetable_by_day,
         "current_class": current_class,
@@ -307,8 +313,14 @@ def get_parent_dashboard(user, academic_year):
     except:
         return {}
 
+    today = timezone.localdate()
     # Get children
-    children = parent.children.all()
+    children = parent.children.select_related(
+        "user", "class_level", "section", "academic_year"
+    )
+    total_children = children.count()
+    total_due_amount = 0
+    total_upcoming_exams = 0
 
     children_data = []
     for child in children:
@@ -324,20 +336,38 @@ def get_parent_dashboard(user, academic_year):
         else:
             attendance = 0
 
-        # Grades
-        grades = Grade.objects.filter(
-            student=child, academic_year=academic_year
-        )[:3]
+        fee_due = (
+            FeeInvoice.objects.filter(
+                student=child, academic_year=academic_year
+            ).aggregate(total=Sum("due_amount"))["total"]
+            or 0
+        )
+
+        upcoming_exams = ExamSchedule.objects.filter(
+            class_level=child.class_level,
+            date__gte=today,
+        ).select_related("subject", "exam_type").order_by("date", "start_time")[
+            :3
+        ]
+        total_upcoming_exams += upcoming_exams.count()
+        next_exam = upcoming_exams[0] if upcoming_exams else None
+
+        total_due_amount += fee_due
 
         children_data.append(
             {
                 "student": child,
                 "attendance": attendance,
-                "grades": grades,
+                "fee_due": fee_due,
+                "upcoming_exams": upcoming_exams,
+                "next_exam": next_exam,
             }
         )
 
     return {
         "parent": parent,
         "children_data": children_data,
+        "total_children": total_children,
+        "total_due_amount": total_due_amount,
+        "total_upcoming_exams": total_upcoming_exams,
     }

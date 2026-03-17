@@ -3,16 +3,24 @@ import string
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.db.models import Q
+from django.db import IntegrityError
+from django.db import transaction
+from django.db.models import Q, Sum
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
 from django.utils import timezone
 from django.views.generic import ListView
 
-from accounts.models import User
-from roles.decorators import PermissionRequiredMixin, permission_required
+from accounts.models import ParentProfile, User
+from roles.decorators import (
+    PermissionRequiredMixin,
+    permission_or_role_required,
+    permission_required,
+)
+from roles.services import assign_default_role_to_user
 
+from .forms import StudentCreateForm
 from .models import (
     AcademicYear,
     ClassLevel,
@@ -29,6 +37,17 @@ def generate_admission_no():
     return f"ADM{year}{random_digits}"
 
 
+def _filter_students_for_user(queryset, user):
+    """Restrict parent users to only their linked children."""
+    if user.role != "parent":
+        return queryset
+
+    if not hasattr(user, "parent_profile"):
+        return queryset.none()
+
+    return queryset.filter(parents=user.parent_profile).distinct()
+
+
 class StudentListView(PermissionRequiredMixin, ListView):
     """List all students."""
 
@@ -43,6 +62,7 @@ class StudentListView(PermissionRequiredMixin, ListView):
         queryset = Student.objects.select_related(
             "user", "class_level", "section", "academic_year"
         ).filter(status="studying")
+        queryset = _filter_students_for_user(queryset, self.request.user)
 
         # Search
         search = self.request.GET.get("q")
@@ -67,8 +87,16 @@ class StudentListView(PermissionRequiredMixin, ListView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["classes"] = ClassLevel.objects.filter(is_active=True)
-        context["sections"] = Section.objects.filter(is_active=True)
+        student_queryset = _filter_students_for_user(
+            Student.objects.filter(status="studying"),
+            self.request.user,
+        )
+        context["classes"] = ClassLevel.objects.filter(
+            is_active=True, students__in=student_queryset
+        ).distinct()
+        context["sections"] = Section.objects.filter(
+            is_active=True, students__in=student_queryset
+        ).distinct()
         return context
 
 
@@ -76,78 +104,150 @@ class StudentListView(PermissionRequiredMixin, ListView):
 @permission_required("students", "add")
 def student_create(request):
     """Create a new student."""
+    form = StudentCreateForm(request.POST or None)
+
     if request.method == "POST":
-        # Get form data
-        first_name = request.POST.get("first_name")
-        last_name = request.POST.get("last_name")
-        email = request.POST.get("email")
-        username = request.POST.get("first_name")
-        password = request.POST.get("password")
+        if form.is_valid():
+            data = form.cleaned_data
 
-        # Create user
-        user = User.objects.create_user(
-            username=username,
-            email=email,
-            password=password,
-            role="student",
-            first_name=first_name,
-            last_name=last_name,
-            phone=request.POST.get("phone"),
-            gender=request.POST.get("gender"),
-            date_of_birth=request.POST.get("date_of_birth"),
-        )
+            try:
+                with transaction.atomic():
+                    user = User.objects.create_user(
+                        username=data["username"],
+                        email=data["email"],
+                        password=data["password"],
+                        role="student",
+                        first_name=data["first_name"],
+                        last_name=data["last_name"],
+                        phone=data["phone"],
+                        gender=data["gender"],
+                        date_of_birth=data["date_of_birth"],
+                    )
+                    assign_default_role_to_user(
+                        user, assigned_by=request.user
+                    )
 
-        # Create student
-        student = Student.objects.create(
-            user=user,
-            admission_no=generate_admission_no(),
-            admission_date=request.POST.get("admission_date"),
-            date_of_birth=request.POST.get("date_of_birth"),
-            gender=request.POST.get("gender"),
-            blood_group=request.POST.get("blood_group"),
-            religion=request.POST.get("religion"),
-            aadhar_no=request.POST.get("aadhar_no"),
-            class_level_id=request.POST.get("class_level"),
-            section_id=request.POST.get("section"),
-            roll_number=request.POST.get("roll_number"),
-            academic_year_id=request.POST.get("academic_year"),
-            house=request.POST.get("house"),
-            previous_school=request.POST.get("previous_school"),
-        )
+                    student = Student.objects.create(
+                        user=user,
+                        admission_no=generate_admission_no(),
+                        admission_date=data["admission_date"],
+                        date_of_birth=data["date_of_birth"],
+                        gender=data["gender"],
+                        blood_group=data["blood_group"],
+                        religion=data["religion"],
+                        aadhar_no=data["aadhar_no"],
+                        class_level=data["class_level"],
+                        section=data["section"],
+                        roll_number=data["roll_number"],
+                        academic_year=data["academic_year"],
+                        house=data["house"],
+                        previous_school=data["previous_school"],
+                        tc_no=data["tc_no"],
+                    )
 
-        messages.success(
-            request,
-            f"Student {student.user.get_full_name} created successfully!",
-        )
-        return redirect("students:list")
+                    if (
+                        request.user.role == "parent"
+                        and hasattr(request.user, "parent_profile")
+                    ):
+                        request.user.parent_profile.children.add(student)
+                    elif data.get("has_parent_data"):
+                        parent_user = User.objects.create_user(
+                            username=data["parent_username"],
+                            email=data["parent_email"],
+                            password=data["parent_password"],
+                            role="parent",
+                            first_name=data["parent_first_name"],
+                            last_name=data["parent_last_name"],
+                            phone=data["parent_phone"],
+                        )
+                        assign_default_role_to_user(
+                            parent_user, assigned_by=request.user
+                        )
+
+                        parent_profile = parent_user.parent_profile
+                        parent_profile.occupation = data["parent_occupation"]
+                        parent_profile.income = data["parent_income"] or 0
+                        parent_profile.relation = data["parent_relation"]
+                        parent_profile.emergency_contact = data[
+                            "parent_emergency_contact"
+                        ]
+                        parent_profile.save()
+                        parent_profile.children.add(student)
+            except IntegrityError:
+                if data.get("parent_username") and User.objects.filter(
+                    username__iexact=data["parent_username"]
+                ).exists():
+                    form.add_error(
+                        "parent_username",
+                        "This parent username is already taken. Please choose another one.",
+                    )
+                else:
+                    form.add_error(
+                        "username",
+                        "This username is already taken. Please choose another one.",
+                    )
+                messages.error(
+                    request, "Please fix the errors below and try again."
+                )
+                context = {
+                    "form": form,
+                    "academic_years": AcademicYear.objects.filter(
+                        is_active=True
+                    ),
+                    "classes": ClassLevel.objects.filter(is_active=True),
+                    "sections": Section.objects.filter(
+                        is_active=True
+                    ).select_related("class_level"),
+                }
+                return render(request, "students/form.html", context)
+
+            messages.success(
+                request,
+                f"Student {student.get_full_name()} created successfully!",
+            )
+            return redirect("students:list")
+
+        messages.error(request, "Please fix the errors below and try again.")
 
     # Get context for form
     context = {
+        "form": form,
         "academic_years": AcademicYear.objects.filter(is_active=True),
         "classes": ClassLevel.objects.filter(is_active=True),
+        "sections": Section.objects.filter(is_active=True).select_related(
+            "class_level"
+        ),
     }
     return render(request, "students/form.html", context)
 
 
 @login_required
-@permission_required("students", "view")
+@permission_or_role_required(permission=("students", "view"), role="parent")
 def student_detail(request, pk):
     """Student detail view."""
+    student_queryset = Student.objects.select_related(
+        "user", "class_level", "section", "academic_year"
+    )
     student = get_object_or_404(
-        Student.objects.select_related(
-            "user", "class_level", "section", "academic_year"
-        ),
+        _filter_students_for_user(student_queryset, request.user),
         pk=pk,
     )
 
+    from academics.models import Timetable
     from attendance.models import Attendance
-    from examinations.models import Grade
+    from examinations.models import ExamSchedule, Grade
     from fees.models import FeeInvoice
 
+    current_time = timezone.localtime()
+    today = current_time.date()
+    current_weekday = today.weekday()
+
     # Attendance
-    total_attendance = Attendance.objects.filter(student=student).count()
+    total_attendance = Attendance.objects.filter(
+        student=student, academic_year=student.academic_year
+    ).count()
     present_days = Attendance.objects.filter(
-        student=student, status="present"
+        student=student, status="present", academic_year=student.academic_year
     ).count()
     attendance_percentage = (
         round((present_days / total_attendance) * 100, 2)
@@ -156,20 +256,64 @@ def student_detail(request, pk):
     )
 
     # Recent grades
-    grades = Grade.objects.filter(student=student).select_related(
-        "subject", "exam_type"
-    )[:5]
+    grades = Grade.objects.filter(
+        student=student, academic_year=student.academic_year
+    ).select_related("subject", "exam_type")[:5]
 
     # Fee invoices
-    invoices = FeeInvoice.objects.filter(student=student).order_by(
-        "-created_at"
-    )[:5]
+    invoices = FeeInvoice.objects.filter(
+        student=student, academic_year=student.academic_year
+    ).order_by("-created_at")[:5]
+    total_due_amount = (
+        FeeInvoice.objects.filter(
+            student=student, academic_year=student.academic_year
+        ).aggregate(total=Sum("due_amount"))["total"]
+        or 0
+    )
+
+    upcoming_exams = ExamSchedule.objects.filter(
+        class_level=student.class_level,
+        academic_year=student.academic_year,
+        date__gte=today,
+    ).select_related("subject", "exam_type").order_by("date", "start_time")[:5]
+
+    parent_profiles = student.parents.select_related("user")
+    today_timeline = []
+
+    if student.section:
+        today_classes = (
+            Timetable.objects.filter(
+                section=student.section,
+                academic_year=student.academic_year,
+                day_of_week=current_weekday,
+            )
+            .select_related("subject", "period", "teacher__user")
+            .order_by("period__period_no")
+        )
+
+        for slot in today_classes:
+            start_time = slot.period.start_time
+            end_time = slot.period.end_time
+
+            if current_time.time() > end_time:
+                status = "completed"
+            elif start_time <= current_time.time() <= end_time:
+                status = "ongoing"
+            else:
+                status = "upcoming"
+
+            today_timeline.append({"slot": slot, "status": status})
 
     context = {
         "student": student,
         "attendance_percentage": attendance_percentage,
         "grades": grades,
         "invoices": invoices,
+        "total_due_amount": total_due_amount,
+        "upcoming_exams": upcoming_exams,
+        "parent_profiles": parent_profiles,
+        "today_timeline": today_timeline,
+        "today_label": today,
     }
     return render(request, "students/detail.html", context)
 
@@ -190,21 +334,27 @@ def student_update(request, pk):
         student.user.save()
 
         # Update student
+        student.admission_date = request.POST.get("admission_date")
+        student.date_of_birth = request.POST.get("date_of_birth")
+        student.gender = request.POST.get("gender")
         student.roll_number = request.POST.get("roll_number")
         student.class_level_id = request.POST.get("class_level")
         student.section_id = request.POST.get("section")
+        student.academic_year_id = request.POST.get("academic_year")
         student.house = request.POST.get("house")
         student.blood_group = request.POST.get("blood_group")
         student.religion = request.POST.get("religion")
         student.aadhar_no = request.POST.get("aadhar_no")
         student.previous_school = request.POST.get("previous_school")
+        student.tc_no = request.POST.get("tc_no")
         student.save()
 
         messages.success(request, "Student updated successfully!")
-        return redirect("students:detail", pk=pk)
+        return redirect("students:list")
 
     context = {
         "student": student,
+        "academic_years": AcademicYear.objects.filter(is_active=True),
         "classes": ClassLevel.objects.filter(is_active=True),
         "sections": Section.objects.filter(is_active=True),
     }
@@ -235,6 +385,7 @@ def student_search(request):
     students = Student.objects.select_related("user", "class_level").filter(
         status="studying"
     )
+    students = _filter_students_for_user(students, request.user)
 
     if query:
         students = students.filter(

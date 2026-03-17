@@ -3,7 +3,10 @@
 
 {% block role_content %}
 <div class="flex justify-between items-center mb-6">
-    <h2 class="text-xl font-semibold text-gray-800">Modules</h2>
+    <div>
+        <h2 class="text-xl font-semibold text-gray-800">Modules</h2>
+        <p class="mt-1 text-sm text-gray-500">Predefined modules are the base of role permissions. Each one keeps default CRUD operations automatically.</p>
+    </div>
     <a href="{% url 'roles:module_create' %}" class="bg-primary-600 hover:bg-primary-700 text-white font-medium py-2 px-4 rounded-lg flex items-center gap-2">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
@@ -46,9 +49,16 @@
                     {% endif %}
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap">
-                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                        {{ module.permission_types.count }} permissions
-                    </span>
+                    <div class="flex flex-wrap gap-2">
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                            {{ module.permission_types.count }} permissions
+                        </span>
+                        {% for permission in module.permission_types.all %}
+                        <span class="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700">
+                            {{ permission.codename }}
+                        </span>
+                        {% endfor %}
+                    </div>
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap">
                     {% if module.is_active %}

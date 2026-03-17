@@ -6,6 +6,7 @@ app_name = "examinations"
 
 urlpatterns = [
     path("", views.index, name="index"),
+    path("exam-types/create/", views.exam_type_create, name="exam_type_create"),
     path("grades/", views.grades, name="grades"),
     path("grades/entry/", views.grade_entry, name="grade_entry"),
     path("grades/subjects/", views.get_subjects, name="get_subjects"),

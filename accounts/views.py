@@ -7,6 +7,7 @@ from django.utils.decorators import method_decorator
 from django.views.generic import CreateView, DetailView, ListView, UpdateView
 
 from roles.decorators import PermissionRequiredMixin
+from roles.services import assign_default_role_to_user
 
 from .forms import (
     LoginForm,
@@ -70,6 +71,8 @@ def register_view(request):
 def profile_view(request):
     """User profile view."""
     user = request.user
+    teacher_profile = getattr(user, "teacher_profile", None)
+    parent_profile = getattr(user, "parent_profile", None)
 
     if request.method == "POST":
         form = UserProfileForm(request.POST, request.FILES, instance=user)
@@ -83,6 +86,8 @@ def profile_view(request):
     context = {
         "form": form,
         "user": user,
+        "teacher_profile": teacher_profile,
+        "parent_profile": parent_profile,
     }
     return render(request, "accounts/profile.html", context)
 
@@ -133,13 +138,15 @@ class TeacherCreateView(PermissionRequiredMixin, CreateView):
             first_name=self.request.POST.get("first_name"),
             last_name=self.request.POST.get("last_name"),
         )
+        assign_default_role_to_user(user, assigned_by=self.request.user)
 
-        teacher = form.save(commit=False)
-        teacher.user = user
+        teacher = user.teacher_profile
+        for field, value in form.cleaned_data.items():
+            setattr(teacher, field, value)
         teacher.save()
 
         messages.success(self.request, "Teacher created successfully!")
-        return super().form_valid(form)
+        return redirect(self.success_url)
 
 
 @method_decorator(login_required, name="dispatch")

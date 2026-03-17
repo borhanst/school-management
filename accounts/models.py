@@ -176,6 +176,36 @@ class User(AbstractUser):
         cache_key = f"user_perms_{self.id}"
         cache.delete(cache_key)
 
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        self.ensure_role_profile()
+
+    def ensure_role_profile(self):
+        """Create the matching profile for role-based users if missing."""
+        if self.role == "parent":
+            ParentProfile.objects.get_or_create(user=self)
+        elif self.role == "teacher":
+            TeacherProfile.objects.get_or_create(
+                user=self,
+                defaults={
+                    "employee_id": self.generate_teacher_employee_id()
+                },
+            )
+
+    def generate_teacher_employee_id(self):
+        """Generate a unique teacher employee id for auto-created profiles."""
+        base_id = f"TCH{self.pk:05d}"
+        employee_id = base_id
+        suffix = 1
+
+        while TeacherProfile.objects.filter(
+            employee_id=employee_id
+        ).exclude(user=self).exists():
+            employee_id = f"{base_id}-{suffix}"
+            suffix += 1
+
+        return employee_id
+
 
 class TeacherProfile(models.Model):
     """Extended profile for teachers."""

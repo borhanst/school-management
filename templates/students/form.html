@@ -13,89 +13,216 @@
 <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
     <form method="POST" class="space-y-6">
         {% csrf_token %}
+
+        {% if form and form.non_field_errors %}
+        <div class="rounded-lg border border-red-200 bg-red-50 p-4">
+            {% for error in form.non_field_errors %}
+            <p class="text-sm text-red-700">{{ error }}</p>
+            {% endfor %}
+        </div>
+        {% endif %}
         
+        {% if not student and request.user.role != 'parent' %}
+        <!-- Parent Information -->
+        <div class="rounded-2xl border border-amber-200 bg-amber-50/70 p-5">
+            <div class="mb-4 flex items-start justify-between gap-4 border-b border-amber-200 pb-3">
+                <div>
+                    <p class="text-xs font-semibold uppercase tracking-[0.2em] text-amber-700">Section 1</p>
+                    <h3 class="text-lg font-semibold text-amber-950">Parent Details</h3>
+                    <p class="text-sm text-amber-800">Fill in this section to create and link a parent account for this student.</p>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Parent First Name</label>
+                    <input type="text" name="parent_first_name" value="{{ form.parent_first_name.value|default:'' }}"
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                    {% if form and form.parent_first_name.errors %}<p class="mt-1 text-sm text-red-600">{{ form.parent_first_name.errors.0 }}</p>{% endif %}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Parent Last Name</label>
+                    <input type="text" name="parent_last_name" value="{{ form.parent_last_name.value|default:'' }}"
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                    {% if form and form.parent_last_name.errors %}<p class="mt-1 text-sm text-red-600">{{ form.parent_last_name.errors.0 }}</p>{% endif %}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Relation</label>
+                    <select name="parent_relation"
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                        <option value="">Select Relation</option>
+                        <option value="father" {% if form and form.parent_relation.value == 'father' %}selected{% endif %}>Father</option>
+                        <option value="mother" {% if form and form.parent_relation.value == 'mother' %}selected{% endif %}>Mother</option>
+                        <option value="guardian" {% if form and form.parent_relation.value == 'guardian' %}selected{% endif %}>Guardian</option>
+                        <option value="other" {% if form and form.parent_relation.value == 'other' %}selected{% endif %}>Other</option>
+                    </select>
+                    {% if form and form.parent_relation.errors %}<p class="mt-1 text-sm text-red-600">{{ form.parent_relation.errors.0 }}</p>{% endif %}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Parent Username</label>
+                    <input type="text" name="parent_username" value="{{ form.parent_username.value|default:'' }}"
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                    {% if form and form.parent_username.errors %}<p class="mt-1 text-sm text-red-600">{{ form.parent_username.errors.0 }}</p>{% endif %}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Parent Email</label>
+                    <input type="email" name="parent_email" value="{{ form.parent_email.value|default:'' }}"
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                    {% if form and form.parent_email.errors %}<p class="mt-1 text-sm text-red-600">{{ form.parent_email.errors.0 }}</p>{% endif %}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Parent Phone</label>
+                    <input type="text" name="parent_phone" value="{{ form.parent_phone.value|default:'' }}"
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                    {% if form and form.parent_phone.errors %}<p class="mt-1 text-sm text-red-600">{{ form.parent_phone.errors.0 }}</p>{% endif %}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Parent Password</label>
+                    <input type="password" name="parent_password"
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                    {% if form and form.parent_password.errors %}<p class="mt-1 text-sm text-red-600">{{ form.parent_password.errors.0 }}</p>{% endif %}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Occupation</label>
+                    <input type="text" name="parent_occupation" value="{{ form.parent_occupation.value|default:'' }}"
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                    {% if form and form.parent_occupation.errors %}<p class="mt-1 text-sm text-red-600">{{ form.parent_occupation.errors.0 }}</p>{% endif %}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Income</label>
+                    <input type="number" step="0.01" name="parent_income" value="{{ form.parent_income.value|default:'' }}"
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                    {% if form and form.parent_income.errors %}<p class="mt-1 text-sm text-red-600">{{ form.parent_income.errors.0 }}</p>{% endif %}
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Emergency Contact</label>
+                    <input type="text" name="parent_emergency_contact" value="{{ form.parent_emergency_contact.value|default:'' }}"
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                    {% if form and form.parent_emergency_contact.errors %}<p class="mt-1 text-sm text-red-600">{{ form.parent_emergency_contact.errors.0 }}</p>{% endif %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
         <!-- Personal Information -->
-        <div>
-            <h3 class="text-lg font-semibold text-gray-800 mb-4">Personal Information</h3>
+        <div class="rounded-2xl border border-sky-200 bg-sky-50/70 p-5">
+            <div class="mb-4 flex items-start justify-between gap-4 border-b border-sky-200 pb-3">
+                <div>
+                    <p class="text-xs font-semibold uppercase tracking-[0.2em] text-sky-700">{% if not student and request.user.role != 'parent' %}Section 2{% else %}Section 1{% endif %}</p>
+                    <h3 class="text-lg font-semibold text-sky-950">Personal Information</h3>
+                    <p class="text-sm text-sky-800">Basic student identity and account information.</p>
+                </div>
+            </div>
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">First Name *</label>
-                    <input type="text" name="first_name" value="{{ student.user.first_name|default:'' }}" required
+                    <input type="text" name="first_name" value="{% if form %}{{ form.first_name.value|default:'' }}{% else %}{{ student.user.first_name|default:'' }}{% endif %}" required
                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                    {% if form and form.first_name.errors %}<p class="mt-1 text-sm text-red-600">{{ form.first_name.errors.0 }}</p>{% endif %}
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Last Name *</label>
-                    <input type="text" name="last_name" value="{{ student.user.last_name|default:'' }}" required
+                    <input type="text" name="last_name" value="{% if form %}{{ form.last_name.value|default:'' }}{% else %}{{ student.user.last_name|default:'' }}{% endif %}" required
                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                    {% if form and form.last_name.errors %}<p class="mt-1 text-sm text-red-600">{{ form.last_name.errors.0 }}</p>{% endif %}
                 </div>
+                {% if not student %}
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Username *</label>
+                    <input type="text" name="username" value="{{ form.username.value|default:'' }}" required
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                    {% if form and form.username.errors %}<p class="mt-1 text-sm text-red-600">{{ form.username.errors.0 }}</p>{% endif %}
+                </div>
+                {% endif %}
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                    <input type="email" name="email" value="{{ student.user.email|default:'' }}"
+                    <input type="email" name="email" value="{% if form %}{{ form.email.value|default:'' }}{% else %}{{ student.user.email|default:'' }}{% endif %}"
                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                    {% if form and form.email.errors %}<p class="mt-1 text-sm text-red-600">{{ form.email.errors.0 }}</p>{% endif %}
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Phone</label>
-                    <input type="text" name="phone" value="{{ student.user.phone|default:'' }}"
+                    <input type="text" name="phone" value="{% if form %}{{ form.phone.value|default:'' }}{% else %}{{ student.user.phone|default:'' }}{% endif %}"
                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                    {% if form and form.phone.errors %}<p class="mt-1 text-sm text-red-600">{{ form.phone.errors.0 }}</p>{% endif %}
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Date of Birth *</label>
-                    <input type="date" name="date_of_birth" value="{{ student.date_of_birth|default:''|date:'Y-m-d' }}" required
+                    <input type="date" name="date_of_birth" value="{% if form %}{{ form.date_of_birth.value|default:'' }}{% else %}{{ student.date_of_birth|default:''|date:'Y-m-d' }}{% endif %}" required
                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                    {% if form and form.date_of_birth.errors %}<p class="mt-1 text-sm text-red-600">{{ form.date_of_birth.errors.0 }}</p>{% endif %}
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Gender *</label>
                     <select name="gender" required
                             class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
                         <option value="">Select Gender</option>
-                        <option value="male" {% if student.gender == 'male' %}selected{% endif %}>Male</option>
-                        <option value="female" {% if student.gender == 'female' %}selected{% endif %}>Female</option>
-                        <option value="other" {% if student.gender == 'other' %}selected{% endif %}>Other</option>
+                        <option value="male" {% if form %}{% if form.gender.value == 'male' %}selected{% endif %}{% else %}{% if student.gender == 'male' %}selected{% endif %}{% endif %}>Male</option>
+                        <option value="female" {% if form %}{% if form.gender.value == 'female' %}selected{% endif %}{% else %}{% if student.gender == 'female' %}selected{% endif %}{% endif %}>Female</option>
+                        <option value="other" {% if form %}{% if form.gender.value == 'other' %}selected{% endif %}{% else %}{% if student.gender == 'other' %}selected{% endif %}{% endif %}>Other</option>
                     </select>
+                    {% if form and form.gender.errors %}<p class="mt-1 text-sm text-red-600">{{ form.gender.errors.0 }}</p>{% endif %}
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Blood Group</label>
                     <select name="blood_group"
                             class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
                         <option value="">Select</option>
-                        <option value="A+" {% if student.blood_group == 'A+' %}selected{% endif %}>A+</option>
-                        <option value="A-" {% if student.blood_group == 'A-' %}selected{% endif %}>A-</option>
-                        <option value="B+" {% if student.blood_group == 'B+' %}selected{% endif %}>B+</option>
-                        <option value="B-" {% if student.blood_group == 'B-' %}selected{% endif %}>B-</option>
-                        <option value="O+" {% if student.blood_group == 'O+' %}selected{% endif %}>O+</option>
-                        <option value="O-" {% if student.blood_group == 'O-' %}selected{% endif %}>O-</option>
-                        <option value="AB+" {% if student.blood_group == 'AB+' %}selected{% endif %}>AB+</option>
-                        <option value="AB-" {% if student.blood_group == 'AB-' %}selected{% endif %}>AB-</option>
+                        <option value="A+" {% if form %}{% if form.blood_group.value == 'A+' %}selected{% endif %}{% else %}{% if student.blood_group == 'A+' %}selected{% endif %}{% endif %}>A+</option>
+                        <option value="A-" {% if form %}{% if form.blood_group.value == 'A-' %}selected{% endif %}{% else %}{% if student.blood_group == 'A-' %}selected{% endif %}{% endif %}>A-</option>
+                        <option value="B+" {% if form %}{% if form.blood_group.value == 'B+' %}selected{% endif %}{% else %}{% if student.blood_group == 'B+' %}selected{% endif %}{% endif %}>B+</option>
+                        <option value="B-" {% if form %}{% if form.blood_group.value == 'B-' %}selected{% endif %}{% else %}{% if student.blood_group == 'B-' %}selected{% endif %}{% endif %}>B-</option>
+                        <option value="O+" {% if form %}{% if form.blood_group.value == 'O+' %}selected{% endif %}{% else %}{% if student.blood_group == 'O+' %}selected{% endif %}{% endif %}>O+</option>
+                        <option value="O-" {% if form %}{% if form.blood_group.value == 'O-' %}selected{% endif %}{% else %}{% if student.blood_group == 'O-' %}selected{% endif %}{% endif %}>O-</option>
+                        <option value="AB+" {% if form %}{% if form.blood_group.value == 'AB+' %}selected{% endif %}{% else %}{% if student.blood_group == 'AB+' %}selected{% endif %}{% endif %}>AB+</option>
+                        <option value="AB-" {% if form %}{% if form.blood_group.value == 'AB-' %}selected{% endif %}{% else %}{% if student.blood_group == 'AB-' %}selected{% endif %}{% endif %}>AB-</option>
                     </select>
+                    {% if form and form.blood_group.errors %}<p class="mt-1 text-sm text-red-600">{{ form.blood_group.errors.0 }}</p>{% endif %}
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Religion</label>
                     <select name="religion"
                             class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
                         <option value="">Select</option>
-                        <option value="islam" {% if student.religion == 'islam' %}selected{% endif %}>Islam</option>
-                        <option value="hinduism" {% if student.religion == 'hinduism' %}selected{% endif %}>Hinduism</option>
-                        <option value="christianity" {% if student.religion == 'christianity' %}selected{% endif %}>Christianity</option>
-                        <option value="buddhism" {% if student.religion == 'buddhism' %}selected{% endif %}>Buddhism</option>
-                        <option value="other" {% if student.religion == 'other' %}selected{% endif %}>Other</option>
+                        <option value="islam" {% if form %}{% if form.religion.value == 'islam' %}selected{% endif %}{% else %}{% if student.religion == 'islam' %}selected{% endif %}{% endif %}>Islam</option>
+                        <option value="hinduism" {% if form %}{% if form.religion.value == 'hinduism' %}selected{% endif %}{% else %}{% if student.religion == 'hinduism' %}selected{% endif %}{% endif %}>Hinduism</option>
+                        <option value="christianity" {% if form %}{% if form.religion.value == 'christianity' %}selected{% endif %}{% else %}{% if student.religion == 'christianity' %}selected{% endif %}{% endif %}>Christianity</option>
+                        <option value="buddhism" {% if form %}{% if form.religion.value == 'buddhism' %}selected{% endif %}{% else %}{% if student.religion == 'buddhism' %}selected{% endif %}{% endif %}>Buddhism</option>
+                        <option value="other" {% if form %}{% if form.religion.value == 'other' %}selected{% endif %}{% else %}{% if student.religion == 'other' %}selected{% endif %}{% endif %}>Other</option>
                     </select>
+                    {% if form and form.religion.errors %}<p class="mt-1 text-sm text-red-600">{{ form.religion.errors.0 }}</p>{% endif %}
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Aadhar Number</label>
-                    <input type="text" name="aadhar_no" value="{{ student.aadhar_no|default:'' }}"
+                    <input type="text" name="aadhar_no" value="{% if form %}{{ form.aadhar_no.value|default:'' }}{% else %}{{ student.aadhar_no|default:'' }}{% endif %}"
                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                    {% if form and form.aadhar_no.errors %}<p class="mt-1 text-sm text-red-600">{{ form.aadhar_no.errors.0 }}</p>{% endif %}
                 </div>
+                {% if not student %}
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Password *</label>
+                    <input type="password" name="password" required
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                    {% if form and form.password.errors %}<p class="mt-1 text-sm text-red-600">{{ form.password.errors.0 }}</p>{% endif %}
+                </div>
+                {% endif %}
             </div>
         </div>
         
         <!-- Academic Information -->
-        <div>
-            <h3 class="text-lg font-semibold text-gray-800 mb-4">Academic Information</h3>
+        <div class="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-5">
+            <div class="mb-4 flex items-start justify-between gap-4 border-b border-emerald-200 pb-3">
+                <div>
+                    <p class="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-700">{% if not student and request.user.role != 'parent' %}Section 3{% else %}Section 2{% endif %}</p>
+                    <h3 class="text-lg font-semibold text-emerald-950">Academic Information</h3>
+                    <p class="text-sm text-emerald-800">Class placement, admission details, and academic year settings.</p>
+                </div>
+            </div>
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Admission Date *</label>
-                    <input type="date" name="admission_date" value="{{ student.admission_date|default:''|date:'Y-m-d' }}" required
+                    <input type="date" name="admission_date" value="{% if form %}{{ form.admission_date.value|default:'' }}{% else %}{{ student.admission_date|default:''|date:'Y-m-d' }}{% endif %}" required
                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                    {% if form and form.admission_date.errors %}<p class="mt-1 text-sm text-red-600">{{ form.admission_date.errors.0 }}</p>{% endif %}
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Class *</label>
@@ -103,11 +230,12 @@
                             class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
                         <option value="">Select Class</option>
                         {% for class in classes %}
-                        <option value="{{ class.id }}" {% if student.class_level_id == class.id %}selected{% endif %}>
+                        <option value="{{ class.id }}" {% if form %}{% if form.class_level.value == class.id|stringformat:"s" %}selected{% endif %}{% else %}{% if student.class_level_id == class.id %}selected{% endif %}{% endif %}>
                             {{ class.name }}
                         </option>
                         {% endfor %}
                     </select>
+                    {% if form and form.class_level.errors %}<p class="mt-1 text-sm text-red-600">{{ form.class_level.errors.0 }}</p>{% endif %}
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Section</label>
@@ -115,16 +243,18 @@
                             class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
                         <option value="">Select Section</option>
                         {% for section in sections %}
-                        <option value="{{ section.id }}" {% if student.section_id == section.id %}selected{% endif %}>
-                            {{ section.name }}
+                        <option value="{{ section.id }}" {% if form %}{% if form.section.value == section.id|stringformat:"s" %}selected{% endif %}{% else %}{% if student.section_id == section.id %}selected{% endif %}{% endif %}>
+                            {{ section.class_level.name }} - {{ section.name }}
                         </option>
                         {% endfor %}
                     </select>
+                    {% if form and form.section.errors %}<p class="mt-1 text-sm text-red-600">{{ form.section.errors.0 }}</p>{% endif %}
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Roll Number</label>
-                    <input type="number" name="roll_number" value="{{ student.roll_number|default:'' }}"
+                    <input type="number" name="roll_number" value="{% if form %}{{ form.roll_number.value|default:'' }}{% else %}{{ student.roll_number|default:'' }}{% endif %}"
                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                    {% if form and form.roll_number.errors %}<p class="mt-1 text-sm text-red-600">{{ form.roll_number.errors.0 }}</p>{% endif %}
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Academic Year *</label>
@@ -132,35 +262,45 @@
                             class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
                         <option value="">Select Year</option>
                         {% for year in academic_years %}
-                        <option value="{{ year.id }}">{{ year.name }}</option>
+                        <option value="{{ year.id }}" {% if form %}{% if form.academic_year.value == year.id|stringformat:"s" %}selected{% endif %}{% else %}{% if student.academic_year_id == year.id %}selected{% endif %}{% endif %}>{{ year.name }}</option>
                         {% endfor %}
                     </select>
+                    {% if form and form.academic_year.errors %}<p class="mt-1 text-sm text-red-600">{{ form.academic_year.errors.0 }}</p>{% endif %}
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">House</label>
-                    <input type="text" name="house" value="{{ student.house|default:'' }}"
+                    <input type="text" name="house" value="{% if form %}{{ form.house.value|default:'' }}{% else %}{{ student.house|default:'' }}{% endif %}"
                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                    {% if form and form.house.errors %}<p class="mt-1 text-sm text-red-600">{{ form.house.errors.0 }}</p>{% endif %}
                 </div>
             </div>
         </div>
         
         <!-- Previous School -->
-        <div>
-            <h3 class="text-lg font-semibold text-gray-800 mb-4">Previous School (if any)</h3>
+        <div class="rounded-2xl border border-violet-200 bg-violet-50/70 p-5">
+            <div class="mb-4 flex items-start justify-between gap-4 border-b border-violet-200 pb-3">
+                <div>
+                    <p class="text-xs font-semibold uppercase tracking-[0.2em] text-violet-700">{% if not student and request.user.role != 'parent' %}Section 4{% else %}Section 3{% endif %}</p>
+                    <h3 class="text-lg font-semibold text-violet-950">Previous School</h3>
+                    <p class="text-sm text-violet-800">Optional transfer information from the student’s prior school.</p>
+                </div>
+            </div>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">School Name</label>
-                    <input type="text" name="previous_school" value="{{ student.previous_school|default:'' }}"
+                    <input type="text" name="previous_school" value="{% if form %}{{ form.previous_school.value|default:'' }}{% else %}{{ student.previous_school|default:'' }}{% endif %}"
                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                    {% if form and form.previous_school.errors %}<p class="mt-1 text-sm text-red-600">{{ form.previous_school.errors.0 }}</p>{% endif %}
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">TC Number</label>
-                    <input type="text" name="tc_no" value="{{ student.tc_no|default:'' }}"
+                    <input type="text" name="tc_no" value="{% if form %}{{ form.tc_no.value|default:'' }}{% else %}{{ student.tc_no|default:'' }}{% endif %}"
                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                    {% if form and form.tc_no.errors %}<p class="mt-1 text-sm text-red-600">{{ form.tc_no.errors.0 }}</p>{% endif %}
                 </div>
             </div>
         </div>
-        
+
         <!-- Submit -->
         <div class="flex justify-end space-x-3 pt-4 border-t border-gray-100">
             <a href="{% url 'students:list' %}" class="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50">
