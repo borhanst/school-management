@@ -1,6 +1,8 @@
 from django.http import JsonResponse
 from django.urls import path
 
+from . import views
+
 app_name = "communications"
 
 urlpatterns = [
@@ -8,5 +10,5 @@ urlpatterns = [
     path(
         "messages/", lambda r: JsonResponse({"status": "ok"}), name="messages"
     ),
-    path("notices/", lambda r: JsonResponse({"status": "ok"}), name="notices"),
+    path("notices/", views.notice_list, name="notices"),
 ]

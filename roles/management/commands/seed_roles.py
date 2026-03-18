@@ -52,6 +52,7 @@ class Command(BaseCommand):
                 "permissions": [
                     "view",
                     "mark",
+                    "apply_leave",
                     "approve_leave",
                     "view_reports",
                 ],
@@ -83,6 +84,7 @@ class Command(BaseCommand):
                     "delete",
                     "collect",
                     "export",
+                    "manage_fee",
                 ],
             },
             {
@@ -282,6 +284,7 @@ class Command(BaseCommand):
                                     "add",
                                     "edit",
                                     "mark",
+                                    "apply_leave",
                                     "publish_results",
                                 ]:
                                     rp, _ = (
@@ -318,7 +321,7 @@ class Command(BaseCommand):
                         if module_slug in created_modules:
                             module = created_modules[module_slug]
                             for pt in module.permission_types.all():
-                                if pt.codename == "view":
+                                if pt.codename in ["view", "apply_leave"]:
                                     rp, _ = (
                                         RolePermission.objects.get_or_create(
                                             module=module, permission_type=pt

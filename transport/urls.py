@@ -1,9 +1,10 @@
-from django.http import JsonResponse
 from django.urls import path
+
+from . import views
 
 app_name = "transport"
 
 urlpatterns = [
-    path("", lambda r: JsonResponse({"status": "ok"}), name="index"),
-    path("routes/", lambda r: JsonResponse({"status": "ok"}), name="routes"),
+    path("", views.transport_index, name="index"),
+    path("routes/", views.route_list, name="routes"),
 ]

@@ -74,4 +74,14 @@ urlpatterns = [
         views.UserRoleToggleView.as_view(),
         name="toggle_role",
     ),
+    path(
+        "direct-permissions/<int:pk>/remove/",
+        views.UserPermissionRemoveView.as_view(),
+        name="remove_direct_permission",
+    ),
+    path(
+        "direct-permissions/<int:pk>/toggle/",
+        views.UserPermissionToggleView.as_view(),
+        name="toggle_direct_permission",
+    ),
 ]

@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% block title %}Payment Gateway - School Management{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-3xl">
+    <div class="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+        <div class="border-b border-slate-100 bg-[radial-gradient(circle_at_top_left,_rgba(59,130,246,0.18),_transparent_32%),linear-gradient(135deg,#eff6ff_0%,#ffffff_55%,#f8fafc_100%)] px-8 py-8">
+            <p class="text-sm font-semibold uppercase tracking-[0.25em] text-sky-700">Gateway Step</p>
+            <h1 class="mt-3 text-3xl font-bold tracking-tight text-slate-900">{{ gateway_mode|title }} Payment</h1>
+            <p class="mt-3 max-w-2xl text-sm text-slate-600">
+                This is the payment gateway handoff step. Confirm below to simulate a successful {{ gateway_mode }} payment for now.
+            </p>
+        </div>
+
+        <div class="space-y-6 p-8">
+            <div class="grid gap-4 md:grid-cols-2">
+                <div class="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                    <p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Student</p>
+                    <p class="mt-2 text-xl font-semibold text-slate-900">{{ selected_invoice.student.get_full_name }}</p>
+                    <p class="mt-1 text-sm text-slate-500">{{ selected_invoice.fee_structure.fee_type.name }}</p>
+                </div>
+                <div class="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                    <p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Transaction</p>
+                    <p class="mt-2 font-mono text-sm font-semibold text-slate-900">{{ gateway_transaction_id }}</p>
+                    <p class="mt-1 text-sm text-slate-500">Amount ${{ selected_invoice.due_amount }}</p>
+                </div>
+            </div>
+
+            <form method="post" action="{% url 'fees:payment_gateway' %}" class="flex flex-wrap gap-3">
+                {% csrf_token %}
+                <input type="hidden" name="invoice_id" value="{{ selected_invoice.id }}">
+                <input type="hidden" name="payment_mode" value="{{ gateway_mode }}">
+                <input type="hidden" name="transaction_id" value="{{ gateway_transaction_id }}">
+                <input type="hidden" name="remarks" value="{{ gateway_remarks }}">
+                <button type="submit" class="inline-flex items-center rounded-xl bg-slate-900 px-5 py-3 text-sm font-medium text-white transition hover:bg-slate-800">
+                    <i class="fas fa-lock mr-2"></i> Complete Payment
+                </button>
+                <a href="{% url 'fees:payment' %}?invoice={{ selected_invoice.id }}" class="inline-flex items-center rounded-xl border border-slate-300 px-5 py-3 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:text-slate-900">
+                    Back
+                </a>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

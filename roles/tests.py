@@ -12,7 +12,14 @@ from django.views import View
 
 from roles.decorators import PermissionRequiredMixin, permission_required
 from roles.middleware import PermissionContext
-from roles.models import Module, PermissionType, Role, RolePermission, UserRole
+from roles.models import (
+    Module,
+    PermissionType,
+    Role,
+    RolePermission,
+    UserPermission,
+    UserRole,
+)
 from roles.services import CORE_PERMISSION_CODES
 from students.models import AcademicYear, ClassLevel, Section, Student
 
@@ -90,6 +97,14 @@ class PermissionTestMixin:
         user.clear_permission_cache()
         return role
 
+    def assign_direct_permission(self, user, module_slug, action):
+        user_permission = UserPermission.objects.create(
+            user=user,
+            role_permission=self.create_permission(module_slug, action),
+        )
+        user.clear_permission_cache()
+        return user_permission
+
     def create_user(self, username="user", **kwargs):
         defaults = {
             "password": "pass1234",
@@ -131,6 +146,13 @@ class PermissionResolutionTests(PermissionTestMixin, TestCase):
         role.permissions.add(self.create_permission("students", "edit"))
 
         self.assertTrue(user.has_permission("students", "edit"))
+
+    def test_user_direct_permission_is_resolved_without_role(self):
+        user = self.create_user("teacher_direct")
+        self.assign_direct_permission(user, "students", "view")
+
+        self.assertTrue(user.has_permission("students", "view"))
+        self.assertIn("students_view", user.get_all_permissions())
 
     def test_expired_and_inactive_assignments_are_ignored(self):
         user = self.create_user("teacher_expired")
@@ -185,6 +207,14 @@ class PermissionDecoratorTests(PermissionTestMixin, TestCase):
         response = self.client.get(reverse("test_protected"))
         self.assertEqual(response.status_code, 200)
 
+    def test_user_with_direct_permission_is_allowed(self):
+        user = self.create_user("teacher_direct_view")
+        self.assign_direct_permission(user, "students", "view")
+        self.client.force_login(user)
+
+        response = self.client.get(reverse("test_protected"))
+        self.assertEqual(response.status_code, 200)
+
     def test_dynamic_function_view_allows_resolved_active_module(self):
         user = self.create_user("teacher_dynamic_ok")
         self.assign_permission(user, "library", "view")
@@ -215,6 +245,17 @@ class PermissionDecoratorTests(PermissionTestMixin, TestCase):
         response = self.client.get(
             reverse("test_protected_dynamic"), {"module": "library"}
         )
+        self.assertEqual(response.status_code, 403)
+
+    def test_superuser_is_denied_when_module_is_inactive(self):
+        user = self.create_user(
+            "root_inactive", is_superuser=True, is_staff=True, role="admin"
+        )
+        self.create_permission("students", "view")
+        Module.objects.filter(slug="students").update(is_active=False)
+        self.client.force_login(user)
+
+        response = self.client.get(reverse("test_protected"))
         self.assertEqual(response.status_code, 403)
 
     def test_superuser_is_allowed_by_mixin(self):
@@ -275,6 +316,20 @@ class PermissionTemplateTagTests(PermissionTestMixin, TestCase):
 
         self.assertIn("All Students", rendered)
         self.assertNotIn("Exam Schedule", rendered)
+
+    def test_sidebar_hides_role_management_when_accounts_module_inactive(self):
+        user = self.create_user("admin_sidebar", role="admin")
+        Module.objects.get_or_create(
+            slug="accounts",
+            defaults={"name": "Accounts", "is_active": True},
+        )
+        Module.objects.filter(slug="accounts").update(is_active=False)
+
+        rendered = Template(
+            "{% include 'partials/sidebar.html' %}"
+        ).render(Context({"user": user}))
+
+        self.assertNotIn("Role Management", rendered)
 
 
 class PermissionIntegrationTests(PermissionTestMixin, TestCase):
@@ -452,6 +507,55 @@ class RoleManagementWorkflowTests(PermissionTestMixin, TestCase):
 
         call_command("create_fixed_modules")
         self.assertEqual(Module.objects.count(), initial_count)
+
+    def test_assign_access_view_saves_direct_permissions_without_roles(self):
+        self.client.force_login(self.admin_user)
+        user = self.create_user("direct_perm_target", role="teacher")
+        permission = self.create_permission("fees", "manage_fee")
+
+        response = self.client.post(
+            reverse("roles:assign_role"),
+            {
+                "user": user.id,
+                "permissions": [str(permission.id)],
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(
+            UserPermission.objects.filter(
+                user=user,
+                role_permission=permission,
+                is_active=True,
+            ).exists()
+        )
+
+    def test_direct_permission_can_be_deactivated(self):
+        self.client.force_login(self.admin_user)
+        user = self.create_user("direct_perm_toggle_target", role="teacher")
+        user_permission = self.assign_direct_permission(user, "fees", "view")
+
+        response = self.client.post(
+            reverse("roles:toggle_direct_permission", args=[user_permission.id])
+        )
+
+        self.assertEqual(response.status_code, 302)
+        user_permission.refresh_from_db()
+        self.assertFalse(user_permission.is_active)
+
+    def test_direct_permission_can_be_removed(self):
+        self.client.force_login(self.admin_user)
+        user = self.create_user("direct_perm_remove_target", role="teacher")
+        user_permission = self.assign_direct_permission(user, "fees", "view")
+
+        response = self.client.post(
+            reverse("roles:remove_direct_permission", args=[user_permission.id])
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(
+            UserPermission.objects.filter(id=user_permission.id).exists()
+        )
 
 
 @override_settings(ROOT_URLCONF=__name__)

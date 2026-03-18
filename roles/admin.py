@@ -1,6 +1,13 @@
 from django.contrib import admin
 
-from .models import Module, PermissionType, Role, RolePermission, UserRole
+from .models import (
+    Module,
+    PermissionType,
+    Role,
+    RolePermission,
+    UserPermission,
+    UserRole,
+)
 
 
 class PermissionTypeInline(admin.TabularInline):
@@ -57,5 +64,27 @@ class UserRoleAdmin(admin.ModelAdmin):
     list_filter = ["is_active", "role", "assigned_at"]
     search_fields = ["user__username", "user__email", "role__name"]
     raw_id_fields = ["user", "role", "assigned_by"]
+    ordering = ["-assigned_at"]
+    date_hierarchy = "assigned_at"
+
+
+@admin.register(UserPermission)
+class UserPermissionAdmin(admin.ModelAdmin):
+    list_display = [
+        "user",
+        "role_permission",
+        "assigned_by",
+        "assigned_at",
+        "expires_at",
+        "is_active",
+    ]
+    list_filter = ["is_active", "role_permission__module", "assigned_at"]
+    search_fields = [
+        "user__username",
+        "user__email",
+        "role_permission__module__name",
+        "role_permission__permission_type__name",
+    ]
+    raw_id_fields = ["user", "role_permission", "assigned_by"]
     ordering = ["-assigned_at"]
     date_hierarchy = "assigned_at"

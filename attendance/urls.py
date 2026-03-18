@@ -13,6 +13,16 @@ urlpatterns = [
     path("leave/", views.leave_request_list, name="leave_requests"),
     path("leave/add/", views.leave_request_create, name="leave_request_add"),
     path(
+        "leave/<int:pk>/edit/",
+        views.leave_request_edit,
+        name="leave_request_edit",
+    ),
+    path(
+        "leave/<int:pk>/delete/",
+        views.leave_request_delete,
+        name="leave_request_delete",
+    ),
+    path(
         "leave/<int:pk>/approve/",
         views.leave_request_approve,
         name="leave_request_approve",

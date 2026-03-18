@@ -6,7 +6,7 @@ Use these for admin interfaces and bulk operations.
 from django.db.models import Q
 
 from roles.permissions import build_permission_key, has_permission_key
-from roles.models import RolePermission, UserRole
+from roles.models import RolePermission, UserPermission, UserRole
 
 
 def get_user_permissions_from_db(user):
@@ -23,7 +23,7 @@ def get_user_permissions_from_db(user):
     user_id = user.id if hasattr(user, "id") else user
 
     # Single optimized query using values_list
-    permissions = (
+    role_permissions = (
         RolePermission.objects.filter(
             role__user_assignments__user_id=user_id,
             role__user_assignments__is_active=True,
@@ -39,6 +39,21 @@ def get_user_permissions_from_db(user):
         .distinct()
     )
 
+    direct_permissions = (
+        UserPermission.objects.filter(
+            user_id=user_id,
+            is_active=True,
+            role_permission__module__is_active=True,
+        )
+        .filter(Q(expires_at__isnull=True) | Q(expires_at__gte=timezone.now()))
+        .values_list(
+            "role_permission__module__slug",
+            "role_permission__permission_type__codename",
+        )
+        .distinct()
+    )
+
+    permissions = list(role_permissions) + list(direct_permissions)
     return {build_permission_key(m[0], m[1]) for m in permissions}
 
 
@@ -61,7 +76,8 @@ def check_permission_efficient(user, module_slug, action):
     if not user.is_active:
         return False
 
-    return RolePermission.objects.filter(
+    return (
+        RolePermission.objects.filter(
         role__user_assignments__user=user,
         role__user_assignments__is_active=True,
         role__user_assignments__role__is_active=True,
@@ -69,10 +85,20 @@ def check_permission_efficient(user, module_slug, action):
         module__slug=module_slug,
         module__is_active=True,
         permission_type__codename=action,
-    ).filter(
-        Q(role__user_assignments__expires_at__isnull=True)
-        | Q(role__user_assignments__expires_at__gte=timezone.now())
-    ).exists()
+        ).filter(
+            Q(role__user_assignments__expires_at__isnull=True)
+            | Q(role__user_assignments__expires_at__gte=timezone.now())
+        ).exists()
+        or UserPermission.objects.filter(
+            user=user,
+            is_active=True,
+            role_permission__module__slug=module_slug,
+            role_permission__module__is_active=True,
+            role_permission__permission_type__codename=action,
+        )
+        .filter(Q(expires_at__isnull=True) | Q(expires_at__gte=timezone.now()))
+        .exists()
+    )
 
 
 def get_users_with_permission(module_slug, action):
@@ -91,7 +117,7 @@ def get_users_with_permission(module_slug, action):
 
     User = get_user_model()
 
-    user_ids = (
+    role_user_ids = (
         UserRole.objects.filter(
             role__permissions__module__slug=module_slug,
             role__permissions__permission_type__codename=action,
@@ -103,7 +129,21 @@ def get_users_with_permission(module_slug, action):
         .distinct()
     )
 
-    return User.objects.filter(id__in=user_ids, is_active=True)
+    direct_user_ids = (
+        UserPermission.objects.filter(
+            role_permission__module__slug=module_slug,
+            role_permission__permission_type__codename=action,
+            is_active=True,
+        )
+        .filter(Q(expires_at__isnull=True) | Q(expires_at__gte=timezone.now()))
+        .values_list("user_id", flat=True)
+        .distinct()
+    )
+
+    return User.objects.filter(
+        id__in=set(role_user_ids).union(set(direct_user_ids)),
+        is_active=True,
+    )
 
 
 def get_users_with_role(role_name):

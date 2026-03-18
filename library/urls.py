@@ -1,14 +1,15 @@
-from django.http import JsonResponse
 from django.urls import path
+
+from . import views
 
 app_name = "library"
 
 urlpatterns = [
-    path("", lambda r: JsonResponse({"status": "ok"}), name="index"),
-    path("books/", lambda r: JsonResponse({"status": "ok"}), name="books"),
+    path("", views.library_index, name="index"),
+    path("books/", views.book_list, name="books"),
     path(
         "issue-book/",
-        lambda r: JsonResponse({"status": "ok"}),
+        views.book_list,
         name="issue_book",
     ),
 ]

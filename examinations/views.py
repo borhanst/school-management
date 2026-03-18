@@ -2,12 +2,13 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from decimal import Decimal, ROUND_HALF_UP
 
 from academics.models import Subject
 from roles.decorators import permission_required, permission_required_any
 from students.models import AcademicYear, ClassLevel, Section, Student
 
-from .models import ExamSchedule, ExamType, Grade, Term
+from .models import ExamSchedule, ExamType, Grade, GradeDistribution, Term
 
 
 def _filter_students_for_parent(queryset, user):
@@ -331,6 +332,109 @@ def calculate_grade(marks):
         return "C-"
     else:
         return "F"
+
+
+def _default_grade_points(grade_letter):
+    """Fallback grade-point mapping when no distribution is configured."""
+    grade_points_map = {
+        "A+": Decimal("5.00"),
+        "A": Decimal("4.00"),
+        "A-": Decimal("3.50"),
+        "B+": Decimal("3.25"),
+        "B": Decimal("3.00"),
+        "B-": Decimal("2.75"),
+        "C+": Decimal("2.50"),
+        "C": Decimal("2.25"),
+        "C-": Decimal("2.00"),
+        "D": Decimal("1.00"),
+        "F": Decimal("0.00"),
+    }
+    return grade_points_map.get(grade_letter, Decimal("0.00"))
+
+
+def _build_report_card_summary(student, grades):
+    """Build subject-wise report summary and overall CGPA."""
+    if not grades:
+        return [], Decimal("0.00")
+
+    distributions = GradeDistribution.objects.filter(
+        class_level=student.class_level
+    ).select_related("subject", "exam_type")
+
+    distribution_map = {
+        (
+            distribution.subject_id,
+            distribution.exam_type_id,
+            distribution.grade_letter,
+        ): distribution.grade_points
+        for distribution in distributions
+    }
+
+    subjects = {}
+    for grade in grades:
+        exam_weight = grade.exam_type.weightage or Decimal("0.00")
+        subject_entry = subjects.setdefault(
+            grade.subject_id,
+            {
+                "subject": grade.subject,
+                "grades": [],
+                "weight_total": Decimal("0.00"),
+                "weighted_marks": Decimal("0.00"),
+                "weighted_points": Decimal("0.00"),
+                "remarks": [],
+            },
+        )
+
+        grade_points = distribution_map.get(
+            (grade.subject_id, grade.exam_type_id, grade.grade_letter),
+            _default_grade_points(grade.grade_letter),
+        )
+        effective_weight = (
+            Decimal(str(exam_weight)) if exam_weight else Decimal("1.00")
+        )
+        marks_value = Decimal(str(grade.marks))
+
+        subject_entry["grades"].append(grade)
+        subject_entry["weight_total"] += effective_weight
+        subject_entry["weighted_marks"] += marks_value * effective_weight
+        subject_entry["weighted_points"] += (
+            Decimal(str(grade_points)) * effective_weight
+        )
+        if grade.remarks:
+            subject_entry["remarks"].append(grade.remarks)
+
+    subject_results = []
+    total_grade_points = Decimal("0.00")
+
+    for subject_entry in subjects.values():
+        weight_total = subject_entry["weight_total"] or Decimal("1.00")
+        final_marks = (subject_entry["weighted_marks"] / weight_total).quantize(
+            Decimal("0.01"), rounding=ROUND_HALF_UP
+        )
+        final_grade_points = (
+            subject_entry["weighted_points"] / weight_total
+        ).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        final_grade = calculate_grade(float(final_marks))
+
+        total_grade_points += final_grade_points
+        subject_results.append(
+            {
+                "subject": subject_entry["subject"],
+                "exam_count": len(subject_entry["grades"]),
+                "final_marks": final_marks,
+                "final_grade": final_grade,
+                "grade_points": final_grade_points,
+                "remarks": subject_entry["remarks"][-1]
+                if subject_entry["remarks"]
+                else "",
+            }
+        )
+
+    subject_results.sort(key=lambda item: item["subject"].name)
+    overall_cgpa = (total_grade_points / len(subject_results)).quantize(
+        Decimal("0.01"), rounding=ROUND_HALF_UP
+    )
+    return subject_results, overall_cgpa
 
 
 @login_required
@@ -690,10 +794,16 @@ def report_card(request):
             if term_id:
                 grades = grades.filter(term_id=term_id)
 
+            subject_results, overall_cgpa = _build_report_card_summary(
+                student, list(grades)
+            )
+
             context.update(
                 {
                     "student": student,
                     "grades": grades,
+                    "subject_results": subject_results,
+                    "overall_cgpa": overall_cgpa,
                 }
             )
         elif class_levels:

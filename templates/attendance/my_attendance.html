@@ -10,9 +10,11 @@
         <p class="text-gray-600">View your attendance records</p>
     </div>
     <div class="mt-4 md:mt-0">
+        {% if user|has_permission:'attendance.apply_leave' %}
         <a href="{% url 'attendance:leave_request_add' %}" class="inline-flex items-center px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors">
             <i class="fas fa-envelope mr-2"></i> Request Leave
         </a>
+        {% endif %}
     </div>
 </div>
 

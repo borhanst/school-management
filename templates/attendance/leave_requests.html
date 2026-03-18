@@ -11,7 +11,7 @@
         <p class="text-gray-600">Manage student leave requests</p>
     </div>
     <div class="mt-4 md:mt-0">
-        {% if user|has_permission:'attendance.view' %}
+        {% if user|has_permission:'attendance.apply_leave' %}
         <a href="{% url 'attendance:leave_request_add' %}" class="inline-flex items-center px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors">
             <i class="fas fa-plus mr-2"></i> New Leave Request
         </a>
@@ -84,7 +84,19 @@
                         {% endif %}
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm">
-                        {% if request.status == 'pending' and user|has_permission:'attendance.approve_leave' %}
+                        {% if request.status == 'pending' and user.role == 'parent' %}
+                        <div class="flex space-x-3">
+                            <a href="{% url 'attendance:leave_request_edit' request.id %}" class="text-blue-600 hover:text-blue-800" title="Edit">
+                                <i class="fas fa-pen"></i>
+                            </a>
+                            <form method="POST" action="{% url 'attendance:leave_request_delete' request.id %}" class="inline">
+                                {% csrf_token %}
+                                <button type="submit" class="text-red-600 hover:text-red-800" title="Delete" onclick="return confirm('Delete this leave request?');">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </form>
+                        </div>
+                        {% elif request.status == 'pending' and user|has_permission:'attendance.approve_leave' %}
                         <div class="flex space-x-2">
                             <form method="POST" action="{% url 'attendance:leave_request_approve' request.id %}" class="inline">
                                 {% csrf_token %}

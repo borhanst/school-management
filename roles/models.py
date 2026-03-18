@@ -196,3 +196,63 @@ class UserRole(models.Model):
     def is_active_and_valid(self):
         """Check if role assignment is active and not expired."""
         return self.is_active and not self.is_expired()
+
+
+class UserPermission(models.Model):
+    """Direct permission assignment to a user without a role."""
+
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="direct_permission_assignments",
+    )
+    role_permission = models.ForeignKey(
+        RolePermission,
+        on_delete=models.CASCADE,
+        related_name="user_assignments",
+    )
+    assigned_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="assigned_user_permissions",
+    )
+    assigned_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField(
+        null=True, blank=True, help_text="Optional expiration date"
+    )
+    is_active = models.BooleanField(
+        default=True, help_text="Toggle permission on/off without deleting"
+    )
+
+    class Meta:
+        unique_together = ["user", "role_permission"]
+        verbose_name = "User Permission Assignment"
+        verbose_name_plural = "User Permission Assignments"
+        ordering = ["-assigned_at"]
+
+    def __str__(self):
+        return f"{self.user.username} - {self.role_permission.codename}"
+
+    @property
+    def module(self):
+        return self.role_permission.module
+
+    @property
+    def permission_type(self):
+        return self.role_permission.permission_type
+
+    @property
+    def codename(self):
+        return self.role_permission.codename
+
+    def is_expired(self):
+        """Check if direct permission assignment has expired."""
+        if self.expires_at and self.expires_at < timezone.now():
+            return True
+        return False
+
+    def is_active_and_valid(self):
+        """Check if direct permission assignment is active and not expired."""
+        return self.is_active and not self.is_expired()

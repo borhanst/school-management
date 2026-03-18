@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block title %}{% if object %}Edit{% else %}Create{% endif %} Fee Type - School Management{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl p-6">
+    <div class="mb-6">
+        <h1 class="text-2xl font-bold text-gray-800">{% if object %}Edit{% else %}Create{% endif %} Fee Type</h1>
+        <p class="mt-1 text-sm text-gray-500">Manage reusable fee categories for the billing system.</p>
+    </div>
+
+    <form method="post" class="space-y-4 rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
+        {% csrf_token %}
+
+        {% if form.non_field_errors %}
+        <div class="rounded-lg border border-red-200 bg-red-50 p-4">
+            {% for error in form.non_field_errors %}
+            <p class="text-sm text-red-600">{{ error }}</p>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div>
+                <label class="mb-1 block text-sm font-medium text-gray-700">Name</label>
+                {{ form.name }}
+                {% if form.name.errors %}<p class="mt-1 text-sm text-red-600">{{ form.name.errors.0 }}</p>{% endif %}
+            </div>
+            <div>
+                <label class="mb-1 block text-sm font-medium text-gray-700">Category</label>
+                {{ form.category }}
+                {% if form.category.errors %}<p class="mt-1 text-sm text-red-600">{{ form.category.errors.0 }}</p>{% endif %}
+            </div>
+            <div class="md:col-span-2">
+                <label class="mb-1 block text-sm font-medium text-gray-700">Description</label>
+                {{ form.description }}
+                {% if form.description.errors %}<p class="mt-1 text-sm text-red-600">{{ form.description.errors.0 }}</p>{% endif %}
+            </div>
+            <div class="flex items-center gap-3 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+                {{ form.is_active }}
+                <label class="text-sm font-medium text-gray-700">Active</label>
+            </div>
+        </div>
+
+        <div class="flex justify-end gap-3 border-t border-gray-100 pt-4">
+            <a href="{% url 'fees:fee_type_list' %}" class="rounded-lg border border-gray-300 px-6 py-2 text-gray-700 hover:bg-gray-50">Cancel</a>
+            <button type="submit" class="rounded-lg bg-primary-600 px-6 py-2 text-white hover:bg-primary-700">{% if object %}Update{% else %}Create{% endif %}</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

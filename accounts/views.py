@@ -1,11 +1,13 @@
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
+from django.http import HttpResponseForbidden
 from django.shortcuts import redirect, render
 from django.urls import reverse_lazy
 from django.utils.decorators import method_decorator
 from django.views.generic import CreateView, DetailView, ListView, UpdateView
 
+from dashboard.models import SystemSettings
 from roles.decorators import PermissionRequiredMixin
 from roles.services import assign_default_role_to_user
 
@@ -94,8 +96,37 @@ def profile_view(request):
 
 @login_required
 def settings_view(request):
-    """User settings view."""
-    return render(request, "accounts/settings.html")
+    """Admin-only system settings overview."""
+    if not (request.user.is_superuser or request.user.role == "admin"):
+        messages.error(
+            request, "Only administrators can access the settings page."
+        )
+        return HttpResponseForbidden("Permission denied.")
+
+    settings_queryset = SystemSettings.objects.order_by("category", "key")
+    grouped_settings = []
+    settings_by_category = {}
+
+    for setting in settings_queryset:
+        settings_by_category.setdefault(setting.category, []).append(setting)
+
+    for category, items in settings_by_category.items():
+        grouped_settings.append(
+            {
+                "name": category.replace("_", " ").title(),
+                "items": items,
+            }
+        )
+
+    context = {
+        "grouped_settings": grouped_settings,
+        "total_settings": settings_queryset.count(),
+        "public_settings_count": settings_queryset.filter(
+            is_public=True
+        ).count(),
+        "recent_settings": settings_queryset.order_by("-updated_at")[:5],
+    }
+    return render(request, "accounts/settings.html", context)
 
 
 @method_decorator(login_required, name="dispatch")

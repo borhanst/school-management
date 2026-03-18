@@ -1,7 +1,14 @@
 from django import forms
 from django.contrib.auth import get_user_model
 
-from .models import Module, PermissionType, Role, RolePermission, UserRole
+from .models import (
+    Module,
+    PermissionType,
+    Role,
+    RolePermission,
+    UserPermission,
+    UserRole,
+)
 from .services import CORE_PERMISSION_TYPES
 
 User = get_user_model()
@@ -265,22 +272,34 @@ class UserRoleAssignmentForm(forms.Form):
         # Add checkboxes for each role
         self.fields["roles"] = forms.ModelMultipleChoiceField(
             queryset=Role.objects.filter(is_active=True),
-            required=True,  # Require at least one role
+            required=False,
             widget=forms.CheckboxSelectMultiple(
                 attrs={"class": "role-checkbox"}
             ),
             label="Assign Roles",
+        )
+        self.fields["permissions"] = forms.ModelMultipleChoiceField(
+            queryset=RolePermission.objects.select_related(
+                "module", "permission_type"
+            )
+            .filter(module__is_active=True)
+            .order_by("module__order", "module__name", "permission_type__order"),
+            required=False,
+            widget=forms.CheckboxSelectMultiple(
+                attrs={"class": "permission-checkbox"}
+            ),
+            label="Assign Direct Permissions",
         )
 
     def clean(self):
         cleaned_data = super().clean()
         user = cleaned_data.get("user")
         selected_roles = cleaned_data.get("roles", [])
+        selected_permissions = cleaned_data.get("permissions", [])
 
-        # Validate that at least one role is selected
-        if not selected_roles:
+        if not selected_roles and not selected_permissions:
             raise forms.ValidationError(
-                "Please select at least one role to assign."
+                "Please select at least one role or direct permission."
             )
 
         # Check for already active role assignments that would be duplicated
@@ -298,35 +317,60 @@ class UserRoleAssignmentForm(forms.Form):
                 self.duplicate_roles = list(existing_role_names)
             else:
                 self.duplicate_roles = []
+        else:
+            self.duplicate_roles = []
 
         return cleaned_data
 
-    def save(self):
-        """Save role assignments for the selected user."""
+    def save(self, assigned_by=None):
+        """Save role and direct permission assignments for the selected user."""
         user = self.cleaned_data["user"]
         selected_roles = self.cleaned_data["roles"]
+        selected_permissions = self.cleaned_data["permissions"]
 
-        # Get existing role IDs for this user before making changes
         existing_role_ids = list(
             UserRole.objects.filter(user=user).values_list("role_id", flat=True)
         )
+        existing_permission_ids = list(
+            UserPermission.objects.filter(user=user).values_list(
+                "role_permission_id", flat=True
+            )
+        )
 
-        # Deactivate all existing role assignments
         UserRole.objects.filter(user=user).update(is_active=False)
+        UserPermission.objects.filter(user=user).update(is_active=False)
 
-        assigned_roles = []
         for role in selected_roles:
-            # Check if this role was previously assigned
             if role.id in existing_role_ids:
-                # Re-activate the existing assignment
                 user_role = UserRole.objects.get(user=user, role=role)
                 user_role.is_active = True
-                user_role.save()
+                user_role.assigned_by = assigned_by
+                user_role.save(update_fields=["is_active", "assigned_by"])
             else:
-                # Create new assignment
-                user_role = UserRole.objects.create(
-                    user=user, role=role, is_active=True
+                UserRole.objects.create(
+                    user=user,
+                    role=role,
+                    is_active=True,
+                    assigned_by=assigned_by,
                 )
-            assigned_roles.append(role.name)
 
+        for permission in selected_permissions:
+            if permission.id in existing_permission_ids:
+                user_permission = UserPermission.objects.get(
+                    user=user, role_permission=permission
+                )
+                user_permission.is_active = True
+                user_permission.assigned_by = assigned_by
+                user_permission.save(
+                    update_fields=["is_active", "assigned_by"]
+                )
+            else:
+                UserPermission.objects.create(
+                    user=user,
+                    role_permission=permission,
+                    is_active=True,
+                    assigned_by=assigned_by,
+                )
+
+        user.clear_permission_cache()
         return user

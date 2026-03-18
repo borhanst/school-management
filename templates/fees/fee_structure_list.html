@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+
+{% block title %}Fee Structures - School Management{% endblock %}
+
+{% block content %}
+<div class="p-6">
+    <div class="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-800">Fee Structures</h1>
+            <p class="text-gray-600">Set fee amounts by class, fee type, and academic year.</p>
+        </div>
+        <div class="flex gap-3">
+            <a href="{% url 'accounts:settings' %}" class="inline-flex items-center rounded-lg border border-gray-300 px-4 py-2 text-gray-700 hover:bg-gray-50">
+                Back to Settings
+            </a>
+            <a href="{% url 'fees:fee_structure_create' %}" class="inline-flex items-center rounded-lg bg-primary-600 px-4 py-2 text-white hover:bg-primary-700">
+                <i class="fas fa-plus mr-2"></i> Add Fee Structure
+            </a>
+        </div>
+    </div>
+
+    <div class="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
+        <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Class</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Fee Type</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Academic Year</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Amount</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Due Date</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Late Fee</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Status</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-200 bg-white">
+                {% for fee_structure in fee_structures %}
+                <tr class="hover:bg-gray-50">
+                    <td class="px-6 py-4 text-sm font-medium text-gray-900">{{ fee_structure.class_level.name }}</td>
+                    <td class="px-6 py-4 text-sm text-gray-600">{{ fee_structure.fee_type.name }}</td>
+                    <td class="px-6 py-4 text-sm text-gray-600">{{ fee_structure.academic_year.name }}</td>
+                    <td class="px-6 py-4 text-sm text-gray-600">{{ fee_structure.amount }}</td>
+                    <td class="px-6 py-4 text-sm text-gray-600">{{ fee_structure.due_date|date:"d M Y"|default:"-" }}</td>
+                    <td class="px-6 py-4 text-sm text-gray-600">{{ fee_structure.late_fee }}</td>
+                    <td class="px-6 py-4 text-sm">
+                        <span class="inline-flex rounded-full px-2 py-1 text-xs font-semibold {% if fee_structure.is_active %}bg-emerald-100 text-emerald-700{% else %}bg-gray-100 text-gray-600{% endif %}">
+                            {% if fee_structure.is_active %}Active{% else %}Inactive{% endif %}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 text-sm">
+                        <div class="flex items-center gap-3">
+                            <a href="{% url 'fees:fee_structure_edit' fee_structure.id %}" class="text-primary-600 hover:text-primary-800">Edit</a>
+                            <a href="{% url 'fees:fee_structure_delete' fee_structure.id %}" class="text-red-600 hover:text-red-800">Delete</a>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="8" class="px-6 py-8 text-center text-sm text-gray-500">No fee structures created yet.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

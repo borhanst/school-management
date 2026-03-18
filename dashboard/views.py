@@ -1,5 +1,5 @@
 from django.contrib.auth.decorators import login_required
-from django.db.models import Count, Sum
+from django.db.models import Count, Sum, Q
 from django.shortcuts import render
 from django.utils import timezone
 
@@ -42,16 +42,104 @@ def dashboard_index(request):
 
 def get_admin_dashboard(academic_year, today):
     """Get admin dashboard data."""
+    current_time = timezone.localtime()
+    current_weekday = current_time.weekday()
+    current_clock = current_time.time()
+
     # Student stats
     total_students = Student.objects.filter(status="studying").count()
     new_students_today = Student.objects.filter(
         admission_date=today, status="studying"
     ).count()
 
-    # Class-wise student count
-    class_counts = ClassLevel.objects.annotate(
+    # Class-wise student count with live attendance and timetable snapshot
+    class_queryset = ClassLevel.objects.filter(is_active=True).annotate(
         student_count=Count("students", filter=Q(students__status="studying"))
-    ).values("name", "student_count")
+    )
+
+    attendance_by_class = {}
+    if academic_year:
+        attendance_rows = Attendance.objects.filter(
+            date=today,
+            academic_year=academic_year,
+            student__status="studying",
+        ).values("student__class_level").annotate(
+            marked_students=Count("student", distinct=True),
+            present_students=Count(
+                "student", filter=Q(status="present"), distinct=True
+            ),
+        )
+        attendance_by_class = {
+            row["student__class_level"]: row for row in attendance_rows
+        }
+
+    active_timetables = {}
+    if academic_year:
+        ongoing_slots = (
+            Timetable.objects.filter(
+                academic_year=academic_year,
+                day_of_week=current_weekday,
+                period__start_time__lte=current_clock,
+                period__end_time__gte=current_clock,
+            )
+            .select_related("subject", "period", "section__class_level")
+            .order_by("section__class_level__numeric_name", "period__period_no")
+        )
+
+        for slot in ongoing_slots:
+            class_id = slot.section.class_level_id
+            slot_bucket = active_timetables.setdefault(
+                class_id,
+                {
+                    "period_no": slot.period.period_no,
+                    "subjects": [],
+                },
+            )
+            if slot.subject.name not in slot_bucket["subjects"]:
+                slot_bucket["subjects"].append(slot.subject.name)
+
+    class_cards = []
+    for class_level in class_queryset:
+        attendance_row = attendance_by_class.get(class_level.id, {})
+        current_slot = active_timetables.get(class_level.id)
+
+        subject_names = []
+        period_label = "No active period"
+        if current_slot:
+            subject_names = current_slot["subjects"]
+            period_label = f"Period {current_slot['period_no']}"
+
+        if not subject_names:
+            subject_label = "No subject running now"
+        elif len(subject_names) == 1:
+            subject_label = subject_names[0]
+        elif len(subject_names) == 2:
+            subject_label = ", ".join(subject_names)
+        else:
+            subject_label = (
+                f"{', '.join(subject_names[:2])} +{len(subject_names) - 2} more"
+            )
+
+        marked_students = attendance_row.get("marked_students", 0)
+        present_students = attendance_row.get("present_students", 0)
+        attendance_percentage = (
+            round((present_students / class_level.student_count) * 100, 1)
+            if class_level.student_count > 0
+            else 0
+        )
+
+        class_cards.append(
+            {
+                "id": class_level.id,
+                "name": class_level.name,
+                "student_count": class_level.student_count,
+                "present_students": present_students,
+                "marked_students": marked_students,
+                "attendance_percentage": attendance_percentage,
+                "current_period": period_label,
+                "current_subject": subject_label,
+            }
+        )
 
     # Attendance today
     if academic_year:
@@ -108,7 +196,7 @@ def get_admin_dashboard(academic_year, today):
     return {
         "total_students": total_students,
         "new_students_today": new_students_today,
-        "class_counts": list(class_counts),
+        "class_counts": class_cards,
         "total_present": total_present,
         "attendance_percentage": attendance_percentage,
         "total_fee_due": total_fee_due,

@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+
+{% block title %}Library - School Management{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <section class="relative overflow-hidden rounded-3xl border border-slate-200 bg-[radial-gradient(circle_at_top_left,_rgba(139,92,246,0.18),_transparent_30%),linear-gradient(135deg,#f5f3ff_0%,#ffffff_52%,#f8fafc_100%)] p-8 shadow-sm">
+        <div class="absolute -right-8 top-0 h-36 w-36 rounded-full bg-violet-200/40 blur-3xl"></div>
+        <div class="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+            <div class="max-w-3xl">
+                <p class="text-sm font-semibold uppercase tracking-[0.25em] text-violet-700">Reading Hub</p>
+                <h1 class="mt-3 text-3xl font-bold tracking-tight text-slate-900">Library</h1>
+                <p class="mt-3 text-sm text-slate-600">
+                    Browse available books, check circulation at a glance, and keep an eye on the latest issue activity.
+                </p>
+            </div>
+            <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <div class="rounded-2xl border border-white/80 bg-white/85 px-4 py-4 shadow-sm backdrop-blur">
+                    <p class="text-xs uppercase tracking-[0.2em] text-slate-500">Titles</p>
+                    <p class="mt-2 text-3xl font-bold text-slate-900">{{ total_titles }}</p>
+                </div>
+                <div class="rounded-2xl border border-white/80 bg-white/85 px-4 py-4 shadow-sm backdrop-blur">
+                    <p class="text-xs uppercase tracking-[0.2em] text-slate-500">Copies</p>
+                    <p class="mt-2 text-3xl font-bold text-slate-900">{{ total_copies }}</p>
+                </div>
+                <div class="rounded-2xl border border-white/80 bg-white/85 px-4 py-4 shadow-sm backdrop-blur">
+                    <p class="text-xs uppercase tracking-[0.2em] text-slate-500">Available</p>
+                    <p class="mt-2 text-3xl font-bold text-emerald-700">{{ available_copies }}</p>
+                </div>
+                <div class="rounded-2xl border border-white/80 bg-white/85 px-4 py-4 shadow-sm backdrop-blur">
+                    <p class="text-xs uppercase tracking-[0.2em] text-slate-500">Overdue</p>
+                    <p class="mt-2 text-3xl font-bold text-rose-700">{{ overdue_count }}</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+        <form method="get" class="grid gap-4 xl:grid-cols-[minmax(0,1.7fr)_260px_auto]">
+            <div>
+                <label for="q" class="mb-2 block text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Search Books</label>
+                <input id="q" type="text" name="q" value="{{ search_query }}" placeholder="Search by title, author, ISBN, or category" class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100">
+            </div>
+            <div>
+                <label for="availability" class="mb-2 block text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Availability</label>
+                <select id="availability" name="availability" class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100">
+                    <option value="">All Books</option>
+                    <option value="available" {% if selected_availability == "available" %}selected{% endif %}>Available Now</option>
+                    <option value="unavailable" {% if selected_availability == "unavailable" %}selected{% endif %}>Out of Stock</option>
+                </select>
+            </div>
+            <div class="flex items-end gap-3">
+                <button type="submit" class="inline-flex w-full items-center justify-center rounded-xl bg-slate-900 px-5 py-3 text-sm font-medium text-white transition hover:bg-slate-800 xl:w-auto">
+                    <i class="fas fa-search mr-2"></i> Filter
+                </button>
+                <a href="{% url 'library:books' %}" class="inline-flex items-center justify-center rounded-xl border border-slate-300 px-5 py-3 text-sm font-medium text-slate-600 transition hover:border-slate-400 hover:text-slate-900">
+                    Reset
+                </a>
+            </div>
+        </form>
+    </section>
+
+    <section class="grid gap-6 xl:grid-cols-[minmax(0,1.8fr)_minmax(320px,1fr)]">
+        <div class="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+            <div class="flex items-center justify-between border-b border-slate-100 px-6 py-5">
+                <div>
+                    <h2 class="text-lg font-semibold text-slate-900">Book Catalog</h2>
+                    <p class="text-sm text-slate-500">Searchable list of active books in the library.</p>
+                </div>
+                <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-slate-600">{{ books|length }} books</span>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-slate-100">
+                    <thead class="bg-slate-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Book</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Category</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Location</th>
+                            <th class="px-6 py-3 text-right text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Copies</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        {% for book in books %}
+                        <tr class="transition hover:bg-slate-50/80">
+                            <td class="px-6 py-4">
+                                <div class="flex items-start gap-3">
+                                    <div class="flex h-11 w-11 items-center justify-center rounded-2xl bg-violet-100 font-semibold text-violet-700">
+                                        {{ book.title|slice:":1"|upper }}
+                                    </div>
+                                    <div>
+                                        <p class="font-semibold text-slate-900">{{ book.title }}</p>
+                                        <p class="mt-1 text-xs text-slate-500">{{ book.author }}</p>
+                                        <p class="mt-1 text-xs text-slate-400">ISBN {{ book.isbn }}</p>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 text-sm text-slate-600">{{ book.category.name|default:"Uncategorized" }}</td>
+                            <td class="px-6 py-4 text-sm text-slate-600">
+                                {% if book.rack_no or book.shelf_no %}
+                                    Rack {{ book.rack_no|default:"-" }} • Shelf {{ book.shelf_no|default:"-" }}
+                                {% else %}
+                                    Not assigned
+                                {% endif %}
+                            </td>
+                            <td class="px-6 py-4 text-right text-sm font-semibold text-slate-900">
+                                {{ book.available }}/{{ book.quantity }}
+                            </td>
+                            <td class="px-6 py-4">
+                                <span class="inline-flex rounded-full px-3 py-1 text-xs font-semibold {% if book.available > 0 %}bg-emerald-100 text-emerald-700{% else %}bg-rose-100 text-rose-700{% endif %}">
+                                    {% if book.available > 0 %}Available{% else %}Unavailable{% endif %}
+                                </span>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" class="px-6 py-14 text-center">
+                                <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-violet-100 text-violet-600">
+                                    <i class="fas fa-book text-xl"></i>
+                                </div>
+                                <h3 class="mt-4 text-lg font-semibold text-slate-900">No books found</h3>
+                                <p class="mt-2 text-sm text-slate-500">Try a different search or add books to the catalog.</p>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h2 class="text-lg font-semibold text-slate-900">Recent Issues</h2>
+                    <p class="text-sm text-slate-500">Latest circulation activity.</p>
+                </div>
+                <span class="rounded-full bg-violet-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-violet-700">{{ issued_copies }} issued</span>
+            </div>
+
+            <div class="mt-5 space-y-3">
+                {% for issue in recent_issues %}
+                <article class="rounded-2xl border border-slate-100 p-4">
+                    <div class="flex items-start justify-between gap-4">
+                        <div>
+                            <p class="font-medium text-slate-900">{{ issue.book.title }}</p>
+                            <p class="mt-1 text-xs text-slate-500">{{ issue.student.get_full_name }}{% if issue.student.class_level %} • {{ issue.student.class_level.name }}{% endif %}</p>
+                            <p class="mt-1 text-xs text-slate-400">Issued {{ issue.issue_date }} • Due {{ issue.due_date }}</p>
+                        </div>
+                        <span class="inline-flex rounded-full px-3 py-1 text-xs font-semibold {% if issue.status == 'returned' %}bg-emerald-100 text-emerald-700{% elif issue.status == 'overdue' or issue.status == 'issued' and issue.due_date < today %}bg-rose-100 text-rose-700{% else %}bg-amber-100 text-amber-700{% endif %}">
+                            {% if issue.status == 'issued' and issue.due_date < today %}Overdue{% else %}{{ issue.get_status_display }}{% endif %}
+                        </span>
+                    </div>
+                </article>
+                {% empty %}
+                <p class="rounded-2xl border border-dashed border-slate-200 px-4 py-10 text-center text-sm text-slate-500">No recent book issues found.</p>
+                {% endfor %}
+            </div>
+        </div>
+    </section>
+</div>
+{% endblock %}

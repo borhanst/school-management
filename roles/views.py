@@ -19,7 +19,8 @@ from .forms import (
     UserRoleAssignmentForm,
 )
 from .decorators import PermissionRequiredMixin
-from .models import Module, PermissionType, Role, UserRole
+from .models import Module, PermissionType, Role, UserPermission, UserRole
+from .permissions import is_module_active
 from .services import (
     get_role_permission_matrix,
     save_role_permissions,
@@ -37,9 +38,14 @@ class ManageRolesPermissionMixin(PermissionRequiredMixin):
     def has_permission(self):
         user = self.request.user
         return (
-            user.is_superuser
-            or user.role == "admin"
-            or user.has_permission(self.module_slug, self.permission_codename)
+            is_module_active(self.module_slug)
+            and (
+                user.is_superuser
+                or user.role == "admin"
+                or user.has_permission(
+                    self.module_slug, self.permission_codename
+                )
+            )
         )
 
 
@@ -330,7 +336,7 @@ class RoleDetailView(
 class UserRoleListView(
     LoginRequiredMixin, ManageRolesPermissionMixin, ListView
 ):
-    """List all user role assignments."""
+    """List all user role and direct permission assignments."""
 
     model = UserRole
     template_name = "roles/assignments/list.html"
@@ -342,11 +348,21 @@ class UserRoleListView(
             "user", "role", "assigned_by"
         ).all()
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["user_permissions"] = UserPermission.objects.select_related(
+            "user",
+            "role_permission__module",
+            "role_permission__permission_type",
+            "assigned_by",
+        ).all()
+        return context
+
 
 class UserRoleAssignView(
     LoginRequiredMixin, ManageRolesPermissionMixin, View
 ):
-    """Assign roles to a user."""
+    """Assign roles and direct permissions to a user."""
 
     template_name = "roles/assignments/form.html"
     success_url = reverse_lazy("roles:assignment_list")
@@ -361,6 +377,7 @@ class UserRoleAssignView(
                 "form": form,
                 "users": users,
                 "roles": Role.objects.filter(is_active=True),
+                "permission_matrix": get_role_permission_matrix(),
                 "selected_user_id": None,
             },
         )
@@ -369,26 +386,11 @@ class UserRoleAssignView(
         form = UserRoleAssignmentForm(request.POST)
         selected_user_id = request.POST.get("user")
         if form.is_valid():
-            user = form.cleaned_data["user"]
-            selected_roles = form.cleaned_data.get("roles", [])
-
-            # Update user roles
-            UserRole.objects.filter(user=user).update(is_active=False)
-
-            for role in selected_roles:
-                user_role, created = UserRole.objects.get_or_create(
-                    user=user,
-                    role=role,
-                    defaults={"assigned_by": request.user, "is_active": True},
-                )
-                if not created:
-                    user_role.is_active = True
-                    user_role.assigned_by = request.user
-                    user_role.save()
+            user = form.save(assigned_by=request.user)
 
             messages.success(
                 request,
-                f"Roles assigned to {user.get_full_name() or user.username}!",
+                f"Access updated for {user.get_full_name() or user.username}!",
             )
             return redirect(self.success_url)
 
@@ -400,6 +402,7 @@ class UserRoleAssignView(
                 "form": form,
                 "users": users,
                 "roles": Role.objects.filter(is_active=True),
+                "permission_matrix": get_role_permission_matrix(),
                 "selected_user_id": selected_user_id,
             },
         )
@@ -422,6 +425,16 @@ class UserRoleRemoveView(
         )
         return super().form_valid(form)
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["title"] = "Remove Role Assignment"
+        context["message"] = (
+            f'Are you sure you want to remove the role '
+            f'"{self.object.role.name}" from '
+            f"{self.object.user.get_full_name() or self.object.user.username}?"
+        )
+        return context
+
 
 class UserRoleToggleView(
     LoginRequiredMixin, ManageRolesPermissionMixin, DeleteView
@@ -437,6 +450,56 @@ class UserRoleToggleView(
         messages.success(
             request,
             f'Role "{user_role.role.name}" {status} for {user_role.user.get_full_name() or user_role.user.username}!',
+        )
+
+        return redirect("roles:assignment_list")
+
+
+class UserPermissionRemoveView(
+    LoginRequiredMixin, ManageRolesPermissionMixin, DeleteView
+):
+    """Delete a direct permission assignment from a user."""
+
+    model = UserPermission
+    template_name = "roles/assignments/confirm_delete.html"
+    success_url = reverse_lazy("roles:assignment_list")
+
+    def form_valid(self, form):
+        user_permission = self.get_object()
+        messages.success(
+            self.request,
+            f'Direct permission "{user_permission.permission_type.name}" deleted from '
+            f'{user_permission.user.get_full_name() or user_permission.user.username}!',
+        )
+        return super().form_valid(form)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["title"] = "Delete Direct Permission"
+        context["message"] = (
+            f'Are you sure you want to delete the direct permission '
+            f'"{self.object.permission_type.name}" from '
+            f"{self.object.user.get_full_name() or self.object.user.username}?"
+        )
+        context["submit_label"] = "Delete"
+        return context
+
+
+class UserPermissionToggleView(
+    LoginRequiredMixin, ManageRolesPermissionMixin, DeleteView
+):
+    """Toggle a direct permission assignment on/off."""
+
+    def post(self, request, pk):
+        user_permission = get_object_or_404(UserPermission, pk=pk)
+        user_permission.is_active = not user_permission.is_active
+        user_permission.save()
+
+        status = "activated" if user_permission.is_active else "deactivated"
+        messages.success(
+            request,
+            f'Direct permission "{user_permission.permission_type.name}" {status} for '
+            f'{user_permission.user.get_full_name() or user_permission.user.username}!',
         )
 
         return redirect("roles:assignment_list")

@@ -3,7 +3,14 @@
 from django.db.models.signals import m2m_changed, post_delete, post_save
 from django.dispatch import receiver
 
-from .models import Module, PermissionType, Role, RolePermission, UserRole
+from .models import (
+    Module,
+    PermissionType,
+    Role,
+    RolePermission,
+    UserPermission,
+    UserRole,
+)
 
 
 def _clear_user_permission_cache(user_ids):
@@ -17,6 +24,12 @@ def _clear_user_permission_cache(user_ids):
 @receiver(post_save, sender=UserRole)
 @receiver(post_delete, sender=UserRole)
 def clear_cache_for_user_role_change(sender, instance, **kwargs):
+    instance.user.clear_permission_cache()
+
+
+@receiver(post_save, sender=UserPermission)
+@receiver(post_delete, sender=UserPermission)
+def clear_cache_for_user_permission_change(sender, instance, **kwargs):
     instance.user.clear_permission_cache()
 
 
@@ -42,7 +55,11 @@ def clear_cache_for_module_change(sender, instance, **kwargs):
         is_active=True,
         role__is_active=True,
     ).values_list("user_id", flat=True)
-    _clear_user_permission_cache(user_ids)
+    direct_user_ids = UserPermission.objects.filter(
+        role_permission__module=instance,
+        is_active=True,
+    ).values_list("user_id", flat=True)
+    _clear_user_permission_cache(list(user_ids) + list(direct_user_ids))
 
 
 @receiver(post_save, sender=PermissionType)
@@ -62,4 +79,8 @@ def clear_cache_for_permission_metadata_change(sender, instance, **kwargs):
         is_active=True,
         role__is_active=True,
     ).values_list("user_id", flat=True)
-    _clear_user_permission_cache(user_ids)
+    direct_user_ids = UserPermission.objects.filter(
+        role_permission__in=role_permissions,
+        is_active=True,
+    ).values_list("user_id", flat=True)
+    _clear_user_permission_cache(list(user_ids) + list(direct_user_ids))

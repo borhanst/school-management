@@ -1,6 +1,6 @@
 from django import template
 
-from roles.permissions import parse_permission_string
+from roles.permissions import is_module_active, parse_permission_string
 
 register = template.Library()
 
@@ -64,3 +64,10 @@ def has_role(user, role_name):
     if not user.is_authenticated:
         return False
     return role_name in user.get_role_names()
+
+
+@register.filter
+def module_is_active(module_slug):
+    if not module_slug:
+        return False
+    return is_module_active(str(module_slug))

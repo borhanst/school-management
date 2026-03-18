@@ -1,0 +1,313 @@
+{% extends "base.html" %}
+{% load permission_tags %}
+
+{% block title %}Fees - School Management{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    {% if is_parent_view %}
+    <section class="relative overflow-hidden rounded-3xl border border-slate-200 bg-[radial-gradient(circle_at_top_left,_rgba(248,113,113,0.18),_transparent_32%),linear-gradient(135deg,#fff7ed_0%,#ffffff_52%,#f8fafc_100%)] p-8 shadow-sm">
+        <div class="absolute -right-6 top-0 h-32 w-32 rounded-full bg-rose-200/40 blur-3xl"></div>
+        <div class="relative">
+            <p class="text-sm font-semibold uppercase tracking-[0.25em] text-rose-700">Parent Fee Desk</p>
+            <h1 class="mt-3 text-3xl font-bold tracking-tight text-slate-900">Child Fee Invoices</h1>
+            <p class="mt-3 max-w-2xl text-sm text-slate-600">
+                This page shows all fee invoices for your linked child account(s), including paid, partial, and overdue records.
+            </p>
+        </div>
+    </section>
+
+    <section class="grid gap-4 md:grid-cols-3">
+        <div class="rounded-2xl border border-rose-200 bg-rose-50 p-5 shadow-sm">
+            <p class="text-sm font-medium text-rose-700">Unpaid Invoices</p>
+            <p class="mt-3 text-3xl font-bold text-rose-900">{{ overdue_count }}</p>
+            <p class="mt-2 text-xs text-rose-700">Invoices that still have a balance due.</p>
+        </div>
+        <div class="rounded-2xl border border-amber-200 bg-amber-50 p-5 shadow-sm">
+            <p class="text-sm font-medium text-amber-700">Outstanding Balance</p>
+            <p class="mt-3 text-3xl font-bold text-amber-900">${{ total_due|default:0 }}</p>
+            <p class="mt-2 text-xs text-amber-700">Amount you can clear from this page.</p>
+        </div>
+        <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <p class="text-sm font-medium text-slate-500">Total Invoices</p>
+            <p class="mt-3 text-3xl font-bold text-slate-900">{{ invoices|length }}</p>
+            <p class="mt-2 text-xs text-slate-500">All invoices linked to your child accounts.</p>
+        </div>
+    </section>
+
+    <section class="grid gap-5">
+        {% for invoice in invoices %}
+        <article class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div class="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+                <div class="flex items-start gap-4">
+                    <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-rose-100 font-semibold text-rose-700">
+                        {{ invoice.student.user.first_name|default:invoice.student.user.username|slice:":1"|upper }}
+                    </div>
+                    <div>
+                        <p class="text-lg font-semibold text-slate-900">{{ invoice.student.get_full_name }}</p>
+                        <p class="mt-1 text-sm text-slate-500">
+                            {{ invoice.student.admission_no }} • {{ invoice.student.class_level.name }}{% if invoice.student.section %} - {{ invoice.student.section.name }}{% endif %}
+                        </p>
+                        <div class="mt-3 flex flex-wrap gap-2 text-xs">
+                            <span class="rounded-full bg-slate-100 px-3 py-1 font-medium text-slate-600">{{ invoice.fee_structure.fee_type.name }}</span>
+                            <span class="rounded-full bg-amber-100 px-3 py-1 font-medium text-amber-700">{{ invoice.due_date|date:"F Y" }}</span>
+                            <span class="rounded-full bg-rose-100 px-3 py-1 font-medium text-rose-700">Due {{ invoice.due_date }}</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex flex-col items-start gap-3 lg:items-end">
+                    <div class="text-left lg:text-right">
+                        <p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Invoice Summary</p>
+                        <p class="mt-2 text-3xl font-bold {% if invoice.due_amount > 0 %}text-amber-700{% else %}text-emerald-700{% endif %}">
+                            ${{ invoice.due_amount }}
+                        </p>
+                        <p class="mt-1 text-xs font-medium text-slate-500">
+                            Total ${{ invoice.total_amount }} • Paid ${{ invoice.paid_amount }}
+                        </p>
+                    </div>
+                    <span class="inline-flex rounded-full px-3 py-1 text-xs font-semibold {% if invoice.status == 'paid' %}bg-emerald-100 text-emerald-700{% elif invoice.status == 'partial' %}bg-amber-100 text-amber-700{% elif invoice.status == 'waived' %}bg-sky-100 text-sky-700{% else %}bg-rose-100 text-rose-700{% endif %}">
+                        {{ invoice.get_status_display }}
+                    </span>
+                    {% if invoice.due_amount > 0 %}
+                    <a href="{% url 'fees:payment' %}?invoice={{ invoice.id }}" class="inline-flex items-center rounded-xl bg-slate-900 px-5 py-3 text-sm font-medium text-white transition hover:-translate-y-0.5 hover:bg-slate-800">
+                        <i class="fas fa-credit-card mr-2"></i> Pay Now
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </article>
+        {% empty %}
+        <div class="rounded-3xl border border-dashed border-slate-300 bg-white px-6 py-14 text-center shadow-sm">
+            <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+                <i class="fas fa-check text-xl"></i>
+            </div>
+            <h3 class="mt-4 text-lg font-semibold text-slate-900">No fee invoices found</h3>
+            <p class="mt-2 text-sm text-slate-500">Invoices for your linked child accounts will appear here once they are created.</p>
+        </div>
+        {% endfor %}
+    </section>
+    {% else %}
+    <section class="relative overflow-hidden rounded-3xl border border-slate-200 bg-[radial-gradient(circle_at_top_left,_rgba(245,158,11,0.2),_transparent_32%),linear-gradient(135deg,#fffdf7_0%,#ffffff_52%,#f8fafc_100%)] p-8 shadow-sm">
+        <div class="absolute -right-6 top-0 h-32 w-32 rounded-full bg-amber-200/40 blur-3xl"></div>
+        <div class="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+                <p class="text-sm font-semibold uppercase tracking-[0.25em] text-amber-700">Finance Desk</p>
+                <h1 class="mt-3 text-3xl font-bold tracking-tight text-slate-900">Fees</h1>
+                <p class="mt-3 max-w-2xl text-sm text-slate-600">
+                    Review billed amounts, outstanding balances, and recent collections across the school.
+                </p>
+                {% if current_academic_year %}
+                <div class="mt-4 inline-flex items-center rounded-full border border-amber-200 bg-white/90 px-4 py-2 text-sm text-slate-700 shadow-sm">
+                    <i class="fas fa-calendar-alt mr-2 text-amber-600"></i>
+                    Current academic year: <span class="ml-1 font-semibold">{{ current_academic_year.name }}</span>
+                </div>
+                {% endif %}
+            </div>
+            {% if user|has_permission:'fees.collect' or user|has_role:'admin' or user|has_permission:'fees.add' %}
+            <div class="flex flex-wrap gap-3">
+                {% if user|has_permission:'fees.collect' or user|has_role:'admin' %}
+                <a href="{% url 'fees:payment' %}" class="inline-flex items-center rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:border-amber-300 hover:text-amber-700">
+                    <i class="fas fa-receipt mr-2"></i> Record Payment
+                </a>
+                {% endif %}
+                {% if user|has_permission:'fees.add' or user|has_role:'admin' %}
+                <a href="{% url 'fees:create_invoice' %}" class="inline-flex items-center rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-slate-800">
+                    <i class="fas fa-file-invoice-dollar mr-2"></i> Create Invoice
+                </a>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+    </section>
+
+    <section class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <p class="text-sm font-medium text-slate-500">Total Billed</p>
+            <p class="mt-3 text-3xl font-bold text-slate-900">${{ total_billed|default:0 }}</p>
+            <p class="mt-2 text-xs text-slate-500">Across the filtered invoices below.</p>
+        </div>
+        <div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 shadow-sm">
+            <p class="text-sm font-medium text-emerald-700">Collected</p>
+            <p class="mt-3 text-3xl font-bold text-emerald-900">${{ total_paid|default:0 }}</p>
+            <p class="mt-2 text-xs text-emerald-700">Payments already received.</p>
+        </div>
+        <div class="rounded-2xl border border-amber-200 bg-amber-50 p-5 shadow-sm">
+            <p class="text-sm font-medium text-amber-700">Outstanding</p>
+            <p class="mt-3 text-3xl font-bold text-amber-900">${{ total_due|default:0 }}</p>
+            <p class="mt-2 text-xs text-amber-700">Pending balance yet to be cleared.</p>
+        </div>
+        <div class="rounded-2xl border border-rose-200 bg-rose-50 p-5 shadow-sm">
+            <p class="text-sm font-medium text-rose-700">Overdue Invoices</p>
+            <p class="mt-3 text-3xl font-bold text-rose-900">{{ overdue_count }}</p>
+            <p class="mt-2 text-xs text-rose-700">Due date passed and balance still remains.</p>
+        </div>
+    </section>
+
+    <section class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+        <form method="get" class="grid gap-4 xl:grid-cols-[minmax(0,2fr)_repeat(3,minmax(0,1fr))_auto]">
+            <div>
+                <label for="q" class="mb-2 block text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Search</label>
+                <input id="q" type="text" name="q" value="{{ search_query }}" placeholder="Student, admission no, or fee type" class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-amber-400 focus:ring-4 focus:ring-amber-100">
+            </div>
+            <div>
+                <label for="year" class="mb-2 block text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Year</label>
+                <select id="year" name="year" class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-amber-400 focus:ring-4 focus:ring-amber-100">
+                    <option value="">Current Year</option>
+                    {% for year in academic_years %}
+                    <option value="{{ year.id }}" {% if selected_year == year.id|stringformat:"s" %}selected{% endif %}>{{ year.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label for="class" class="mb-2 block text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Class</label>
+                <select id="class" name="class" class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-amber-400 focus:ring-4 focus:ring-amber-100">
+                    <option value="">All Classes</option>
+                    {% for class_level in classes %}
+                    <option value="{{ class_level.id }}" {% if selected_class == class_level.id|stringformat:"s" %}selected{% endif %}>{{ class_level.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label for="status" class="mb-2 block text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Status</label>
+                <select id="status" name="status" class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-amber-400 focus:ring-4 focus:ring-amber-100">
+                    <option value="">All Statuses</option>
+                    <option value="pending" {% if selected_status == "pending" %}selected{% endif %}>Pending</option>
+                    <option value="partial" {% if selected_status == "partial" %}selected{% endif %}>Partial</option>
+                    <option value="paid" {% if selected_status == "paid" %}selected{% endif %}>Paid</option>
+                    <option value="overdue" {% if selected_status == "overdue" %}selected{% endif %}>Overdue</option>
+                    <option value="waived" {% if selected_status == "waived" %}selected{% endif %}>Waived</option>
+                </select>
+            </div>
+            <div class="flex items-end gap-3">
+                <button type="submit" class="inline-flex w-full items-center justify-center rounded-xl bg-slate-900 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800 xl:w-auto">
+                    <i class="fas fa-search mr-2"></i> Filter
+                </button>
+                <a href="{% url 'fees:list' %}" class="inline-flex items-center justify-center rounded-xl border border-slate-300 px-4 py-3 text-sm font-medium text-slate-600 transition hover:border-slate-400 hover:text-slate-900">
+                    Reset
+                </a>
+            </div>
+        </form>
+    </section>
+
+    <section class="grid gap-6 xl:grid-cols-[minmax(0,1.8fr)_minmax(320px,1fr)]">
+        <div class="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+            <div class="flex items-center justify-between border-b border-slate-100 px-6 py-5">
+                <div>
+                    <h2 class="text-lg font-semibold text-slate-900">Invoices</h2>
+                    <p class="text-sm text-slate-500">Fee records matching the current filters.</p>
+                </div>
+                <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-slate-600">{{ invoices|length }} records</span>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-slate-100">
+                    <thead class="bg-slate-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Student</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Fee Type</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Due Date</th>
+                            <th class="px-6 py-3 text-right text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Total</th>
+                            <th class="px-6 py-3 text-right text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Due</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Status</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        {% for invoice in invoices %}
+                        <tr class="transition hover:bg-slate-50/80">
+                            <td class="px-6 py-4">
+                                <div class="flex items-start gap-3">
+                                    <div class="flex h-11 w-11 items-center justify-center rounded-2xl bg-amber-100 font-semibold text-amber-700">
+                                        {{ invoice.student.user.first_name|default:invoice.student.user.username|slice:":1"|upper }}
+                                    </div>
+                                    <div>
+                                        <p class="font-semibold text-slate-900">{{ invoice.student.get_full_name }}</p>
+                                        <p class="mt-1 text-xs text-slate-500">
+                                            {{ invoice.student.admission_no }}{% if invoice.student.class_level %} • {{ invoice.student.class_level.name }}{% endif %}{% if invoice.student.section %} - {{ invoice.student.section.name }}{% endif %}
+                                        </p>
+                                        <p class="mt-1 text-xs text-slate-400">FEE-{{ invoice.id|stringformat:"05d" }}</p>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4">
+                                <p class="font-medium text-slate-900">{{ invoice.fee_structure.fee_type.name }}</p>
+                                <p class="mt-1 text-xs text-slate-500">{{ invoice.academic_year.name }}</p>
+                            </td>
+                            <td class="px-6 py-4 text-sm text-slate-600">
+                                {{ invoice.due_date }}
+                                {% if invoice.due_date < today and invoice.due_amount > 0 %}
+                                <p class="mt-1 text-xs font-medium text-rose-600">Past due</p>
+                                {% endif %}
+                            </td>
+                            <td class="px-6 py-4 text-right text-sm font-semibold text-slate-900">${{ invoice.total_amount }}</td>
+                            <td class="px-6 py-4 text-right text-sm font-semibold {% if invoice.due_amount > 0 %}text-amber-700{% else %}text-emerald-700{% endif %}">${{ invoice.due_amount }}</td>
+                            <td class="px-6 py-4">
+                                <span class="inline-flex rounded-full px-3 py-1 text-xs font-semibold {% if invoice.status == 'paid' %}bg-emerald-100 text-emerald-700{% elif invoice.status == 'partial' %}bg-amber-100 text-amber-700{% elif invoice.status == 'waived' %}bg-sky-100 text-sky-700{% else %}bg-rose-100 text-rose-700{% endif %}">
+                                    {{ invoice.get_status_display }}
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 text-sm">
+                                <div class="flex flex-wrap items-center gap-3">
+                                    {% if invoice.due_amount > 0 and user|has_permission:'fees.collect' or invoice.due_amount > 0 and user|has_role:'admin' %}
+                                    <a href="{% url 'fees:payment' %}?invoice={{ invoice.id }}" class="text-emerald-700 hover:text-emerald-900">Collect</a>
+                                    {% endif %}
+                                    {% if user|has_permission:'fees.edit' or user|has_role:'admin' %}
+                                    <a href="{% url 'fees:edit_invoice' invoice.id %}" class="text-primary-600 hover:text-primary-800">Edit</a>
+                                    {% endif %}
+                                    {% if user|has_permission:'fees.delete' or user|has_role:'admin' %}
+                                    <a href="{% url 'fees:delete_invoice' invoice.id %}" class="text-red-600 hover:text-red-800">Delete</a>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="7" class="px-6 py-14 text-center">
+                                <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-slate-100 text-slate-400">
+                                    <i class="fas fa-file-invoice-dollar text-xl"></i>
+                                </div>
+                                <h3 class="mt-4 text-lg font-semibold text-slate-900">No fee invoices found</h3>
+                                <p class="mt-2 text-sm text-slate-500">Try a different filter set or create a new invoice to start tracking collections.</p>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <aside class="rounded-3xl border border-slate-200 bg-white shadow-sm">
+            <div class="border-b border-slate-100 px-6 py-5">
+                <h2 class="text-lg font-semibold text-slate-900">Recent Payments</h2>
+                <p class="text-sm text-slate-500">Latest recorded collections from the filtered invoices.</p>
+            </div>
+
+            <div class="space-y-4 p-6">
+                {% for payment in recent_payments %}
+                <article class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <div class="flex items-start justify-between gap-4">
+                        <div>
+                            <p class="font-semibold text-slate-900">{{ payment.invoice.student.get_full_name }}</p>
+                            <p class="mt-1 text-xs text-slate-500">{{ payment.invoice.fee_structure.fee_type.name }} • {{ payment.payment_date }}</p>
+                        </div>
+                        <p class="text-right text-sm font-semibold text-emerald-700">${{ payment.amount }}</p>
+                    </div>
+                    <div class="mt-3 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                        <span class="rounded-full bg-white px-2.5 py-1 font-medium text-slate-600">{{ payment.get_payment_mode_display }}</span>
+                        <span>Receipt {{ payment.receipt_no }}</span>
+                        {% if payment.transaction_id %}
+                        <span>Txn {{ payment.transaction_id }}</span>
+                        {% endif %}
+                    </div>
+                </article>
+                {% empty %}
+                <div class="rounded-2xl border border-dashed border-slate-200 px-4 py-10 text-center text-sm text-slate-500">
+                    No payments recorded yet for the current selection.
+                </div>
+                {% endfor %}
+            </div>
+        </aside>
+    </section>
+    {% endif %}
+</div>
+{% endblock %}

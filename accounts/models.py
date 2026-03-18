@@ -5,6 +5,8 @@ from django.db.models import Q
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
+from roles.permissions import is_module_active
+
 
 class User(AbstractUser):
     """Custom User model using the built-in role field only."""
@@ -72,12 +74,21 @@ class User(AbstractUser):
         active_roles = self.get_active_roles().prefetch_related(
             "role__permissions__module", "role__permissions__permission_type"
         )
+        direct_permissions = self.get_active_direct_permissions().select_related(
+            "role_permission__module",
+            "role_permission__permission_type",
+        )
 
         for user_role in active_roles:
             for role_permission in user_role.role.permissions.all():
                 if not role_permission.module.is_active:
                     continue
                 permissions.add(role_permission.codename)
+
+        for user_permission in direct_permissions:
+            if not user_permission.role_permission.module.is_active:
+                continue
+            permissions.add(user_permission.codename)
 
         cache.set(cache_key, permissions, 300)
         return permissions
@@ -89,10 +100,12 @@ class User(AbstractUser):
     def has_permission(
         self, module_slug, permission_codename, force_refresh=False
     ):
-        if self.is_superuser:
-            return True
         if not self.is_active:
             return False
+        if not is_module_active(module_slug):
+            return False
+        if self.is_superuser:
+            return True
 
         permission_key = f"{module_slug}_{permission_codename}"
         if permission_key in self._get_denied_permissions():
@@ -103,26 +116,28 @@ class User(AbstractUser):
         )
 
     def has_any_permission(self, permissions_list, force_refresh=False):
-        if self.is_superuser:
-            return True
         if not self.is_active:
             return False
 
-        user_perms = self.get_all_permissions(force_refresh=force_refresh)
         for module_slug, permission_codename in permissions_list:
-            if f"{module_slug}_{permission_codename}" in user_perms:
+            if self.has_permission(
+                module_slug,
+                permission_codename,
+                force_refresh=force_refresh,
+            ):
                 return True
         return False
 
     def has_all_permissions(self, permissions_list, force_refresh=False):
-        if self.is_superuser:
-            return True
         if not self.is_active:
             return False
 
-        user_perms = self.get_all_permissions(force_refresh=force_refresh)
         for module_slug, permission_codename in permissions_list:
-            if f"{module_slug}_{permission_codename}" not in user_perms:
+            if not self.has_permission(
+                module_slug,
+                permission_codename,
+                force_refresh=force_refresh,
+            ):
                 return False
         return True
 
@@ -134,6 +149,12 @@ class User(AbstractUser):
                 Q(expires_at__isnull=True) | Q(expires_at__gte=timezone.now())
             )
             .select_related("role")
+        )
+
+    def get_active_direct_permissions(self):
+        """Return active, non-expired direct permission assignments."""
+        return self.direct_permission_assignments.filter(is_active=True).filter(
+            Q(expires_at__isnull=True) | Q(expires_at__gte=timezone.now())
         )
 
     def get_role_names(self):

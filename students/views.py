@@ -12,7 +12,8 @@ from django.template.loader import render_to_string
 from django.utils import timezone
 from django.views.generic import ListView
 
-from accounts.models import ParentProfile, User
+from accounts.models import User
+from fees.services import create_admission_fee_invoices
 from roles.decorators import (
     PermissionRequiredMixin,
     permission_or_role_required,
@@ -109,6 +110,11 @@ def student_create(request):
     if request.method == "POST":
         if form.is_valid():
             data = form.cleaned_data
+            created_fee_invoices = {
+                "monthly": 0,
+                "one_time": 0,
+                "total": 0,
+            }
 
             try:
                 with transaction.atomic():
@@ -173,6 +179,10 @@ def student_create(request):
                         ]
                         parent_profile.save()
                         parent_profile.children.add(student)
+
+                    created_fee_invoices = create_admission_fee_invoices(
+                        student
+                    )
             except IntegrityError:
                 if data.get("parent_username") and User.objects.filter(
                     username__iexact=data["parent_username"]
@@ -201,10 +211,21 @@ def student_create(request):
                 }
                 return render(request, "students/form.html", context)
 
-            messages.success(
-                request,
-                f"Student {student.get_full_name()} created successfully!",
+            success_message = (
+                f"Student {student.get_full_name()} created successfully!"
             )
+            if created_fee_invoices["total"]:
+                fee_parts = []
+                if created_fee_invoices["one_time"]:
+                    fee_parts.append(
+                        f"{created_fee_invoices['one_time']} admission fee invoice(s)"
+                    )
+                if created_fee_invoices["monthly"]:
+                    fee_parts.append(
+                        f"{created_fee_invoices['monthly']} monthly fee invoice(s)"
+                    )
+                success_message += " " + " and ".join(fee_parts) + " were created."
+            messages.success(request, success_message)
             return redirect("students:list")
 
         messages.error(request, "Please fix the errors below and try again.")

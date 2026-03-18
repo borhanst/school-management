@@ -5,9 +5,16 @@ from django.contrib.auth.decorators import login_required
 from django.db.models import Count, Q
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils.decorators import method_decorator
+from django.views import View
 
 from academics.models import Period
-from roles.decorators import permission_required
+from communications.mixins import NoticeCreateMixin
+from roles.decorators import (
+    PermissionRequiredMixin,
+    permission_required,
+    permission_required_any,
+)
 from students.models import AcademicYear, ClassLevel, Section, Student
 
 from .models import (
@@ -413,7 +420,9 @@ def get_students(request):
 
 
 @login_required
-@permission_required("attendance", "view")
+@permission_required_any(
+    ("attendance", "view"), ("attendance", "apply_leave")
+)
 def leave_request_list(request):
     """List all leave requests."""
     try:
@@ -427,13 +436,19 @@ def leave_request_list(request):
     if status_filter:
         filters &= Q(status=status_filter)
 
-    # Teachers and admins see all requests, students see their own
+    # Admins see all requests.
     if request.user.role == "student":
         try:
             student = request.user.student_profile
             filters &= Q(student=student)
         except:
             filters &= Q(id=None)  # No requests
+    elif request.user.role == "parent":
+        try:
+            parent_profile = request.user.parent_profile
+            filters &= Q(student__parents=parent_profile)
+        except:
+            filters &= Q(id=None)  # No linked children
     elif request.user.role == "teacher":
         # Teachers see requests for their sections
         try:
@@ -445,7 +460,9 @@ def leave_request_list(request):
             ).values_list("section_id", flat=True)
             filters &= Q(student__section_id__in=teacher_sections)
         except:
-            pass
+            filters &= Q(id=None)
+    elif request.user.role != "admin":
+        filters &= Q(id=None)
 
     leave_requests = (
         LeaveRequest.objects.filter(filters)
@@ -463,11 +480,24 @@ def leave_request_list(request):
     return render(request, "attendance/leave_requests.html", context)
 
 
-@login_required
-@permission_required("attendance", "view")
-def leave_request_create(request):
+@method_decorator(login_required, name="dispatch")
+class LeaveRequestCreateView(PermissionRequiredMixin, NoticeCreateMixin, View):
     """Create a new leave request."""
-    if request.method == "POST":
+
+    module_slug = "attendance"
+    permission_codename = "apply_leave"
+    template_name = "attendance/leave_request_form.html"
+    success_url_name = "attendance:leave_requests"
+    notice_roles = ["admin", "teacher"]
+    leave_request = None
+
+    def get_success_url(self):
+        return self.success_url_name
+
+    def get(self, request):
+        return render(request, self.template_name, self.get_context_data())
+
+    def post(self, request):
         from_date = request.POST.get("from_date")
         to_date = request.POST.get("to_date")
         reason = request.POST.get("reason")
@@ -476,106 +506,301 @@ def leave_request_create(request):
             academic_year = AcademicYear.objects.get(is_current=True)
         except AcademicYear.DoesNotExist:
             messages.error(request, "No active academic year found.")
-            return redirect("attendance:leave_requests")
+            return redirect(self.get_success_url())
 
-        if request.user.role == "student":
-            try:
-                student = request.user.student_profile
-            except:
-                messages.error(request, "Student profile not found.")
-                return redirect("attendance:leave_requests")
-        else:
-            student_id = request.POST.get("student")
-            if not student_id:
-                messages.error(request, "Please select a student.")
-                return redirect("attendance:leave_requests")
-            student = get_object_or_404(
-                Student, id=student_id, academic_year=academic_year
-            )
+        student = self.get_student_for_request(academic_year)
+        if student is None:
+            return redirect(self.get_success_url())
 
-        leave_request = LeaveRequest.objects.create(
+        self.leave_request = LeaveRequest.objects.create(
             student=student,
             from_date=from_date,
             to_date=to_date,
             reason=reason,
             academic_year=academic_year,
         )
+        self.create_notice_from_request()
 
-        messages.success(request, "Leave request submitted successfully.")
-        return redirect("attendance:leave_requests")
+        messages.success(self.request, "Leave request submitted successfully.")
+        return redirect(self.get_success_url())
 
-    # GET request - show form
-    try:
-        academic_year = AcademicYear.objects.get(is_current=True)
-    except AcademicYear.DoesNotExist:
-        academic_year = None
+    def get_context_data(self):
+        academic_year = self.get_academic_year()
+        students = []
+        selected_student = None
 
-    students = []
-    if academic_year:
-        if request.user.role == "admin" or request.user.role == "teacher":
-            students = (
-                Student.objects.filter(
-                    academic_year=academic_year,
-                    is_active=True,
-                    status="studying",
+        if academic_year:
+            if self.request.user.role in {"admin", "teacher"}:
+                students = (
+                    Student.objects.filter(
+                        academic_year=academic_year,
+                        is_active=True,
+                        status="studying",
+                    )
+                    .select_related("user", "section", "class_level")
+                    .order_by("user__first_name")
                 )
-                .select_related("user", "section", "class_level")
-                .order_by("user__first_name")
+            elif self.request.user.role == "parent":
+                students = (
+                    Student.objects.filter(
+                        academic_year=academic_year,
+                        is_active=True,
+                        status="studying",
+                        parents__user=self.request.user,
+                    )
+                    .select_related("user", "section", "class_level")
+                    .order_by("user__first_name")
+                )
+            elif self.request.user.role == "student":
+                selected_student = getattr(
+                    self.request.user, "student_profile", None
+                )
+
+        return {
+            "students": students,
+            "selected_student": selected_student,
+            "page_title": "New Leave Request",
+            "page_description": "Submit a leave request",
+            "submit_label": "Submit Request",
+            "leave_request": self.leave_request,
+        }
+
+    def get_academic_year(self):
+        try:
+            return AcademicYear.objects.get(is_current=True)
+        except AcademicYear.DoesNotExist:
+            return None
+
+    def get_student_for_request(self, academic_year):
+        if self.request.user.role == "student":
+            try:
+                return self.request.user.student_profile
+            except Exception:
+                messages.error(self.request, "Student profile not found.")
+                return None
+
+        student_id = self.request.POST.get("student")
+        if not student_id:
+            messages.error(self.request, "Please select a student.")
+            return None
+
+        if self.request.user.role == "parent":
+            try:
+                parent_profile = self.request.user.parent_profile
+            except Exception:
+                messages.error(self.request, "Parent profile not found.")
+                return None
+
+            return get_object_or_404(
+                Student,
+                id=student_id,
+                academic_year=academic_year,
+                parents=parent_profile,
             )
 
-    return render(
-        request,
-        "attendance/leave_request_form.html",
-        {
+        return get_object_or_404(
+            Student,
+            id=student_id,
+            academic_year=academic_year,
+        )
+
+    def get_notice_title(self):
+        return "Leave request submitted"
+
+    def get_notice_content(self):
+        student_name = self.leave_request.student.get_full_name()
+        return (
+            f"{student_name} submitted a leave request from "
+            f"{self.leave_request.from_date} to {self.leave_request.to_date}."
+        )
+
+    def get_notice_roles(self):
+        return self.notice_roles
+
+    def get_notice_classes(self):
+        return [self.leave_request.student.class_level_id]
+
+
+@method_decorator(login_required, name="dispatch")
+class ParentPendingLeaveRequestMixin(PermissionRequiredMixin):
+    """Restrict leave editing to parent-owned pending requests."""
+
+    module_slug = "attendance"
+    permission_codename = "apply_leave"
+    leave_request = None
+
+    def dispatch(self, request, *args, **kwargs):
+        if request.user.role != "parent":
+            messages.error(
+                request, "Only parents can update or delete leave requests."
+            )
+            return redirect("attendance:leave_requests")
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_leave_request(self):
+        if self.leave_request is not None:
+            return self.leave_request
+
+        self.leave_request = get_object_or_404(
+            LeaveRequest.objects.select_related(
+                "student__user", "student__class_level", "student__section"
+            ),
+            id=self.kwargs["pk"],
+            status="pending",
+            student__parents__user=self.request.user,
+        )
+        return self.leave_request
+
+
+@method_decorator(login_required, name="dispatch")
+class ParentLeaveRequestUpdateView(ParentPendingLeaveRequestMixin, View):
+    """Allow parents to update their pending leave requests."""
+
+    template_name = "attendance/leave_request_form.html"
+
+    def get(self, request, pk):
+        leave_request = self.get_leave_request()
+        return render(request, self.template_name, self.get_context_data(leave_request))
+
+    def post(self, request, pk):
+        leave_request = self.get_leave_request()
+        from_date = request.POST.get("from_date")
+        to_date = request.POST.get("to_date")
+        reason = request.POST.get("reason")
+        student_id = request.POST.get("student")
+
+        if not student_id:
+            messages.error(request, "Please select a student.")
+            return redirect("attendance:leave_request_edit", pk=leave_request.id)
+
+        parent_profile = request.user.parent_profile
+        student = get_object_or_404(
+            Student,
+            id=student_id,
+            academic_year=leave_request.academic_year,
+            parents=parent_profile,
+        )
+
+        leave_request.student = student
+        leave_request.from_date = from_date
+        leave_request.to_date = to_date
+        leave_request.reason = reason
+        leave_request.save(
+            update_fields=["student", "from_date", "to_date", "reason", "updated_at"]
+        )
+
+        messages.success(request, "Leave request updated successfully.")
+        return redirect("attendance:leave_requests")
+
+    def get_context_data(self, leave_request):
+        students = (
+            Student.objects.filter(
+                academic_year=leave_request.academic_year,
+                is_active=True,
+                status="studying",
+                parents__user=self.request.user,
+            )
+            .select_related("user", "section", "class_level")
+            .order_by("user__first_name")
+        )
+        return {
             "students": students,
-        },
-    )
+            "selected_student": leave_request.student,
+            "leave_request": leave_request,
+            "page_title": "Edit Leave Request",
+            "page_description": "Update your pending leave request",
+            "submit_label": "Update Request",
+        }
 
 
-@login_required
-@permission_required("attendance", "approve_leave")
-def leave_request_approve(request, pk):
+@method_decorator(login_required, name="dispatch")
+class ParentLeaveRequestDeleteView(ParentPendingLeaveRequestMixin, View):
+    """Allow parents to delete their pending leave requests."""
+
+    def post(self, request, pk):
+        leave_request = self.get_leave_request()
+        leave_request.delete()
+        messages.success(request, "Leave request deleted successfully.")
+        return redirect("attendance:leave_requests")
+
+    def get(self, request, pk):
+        return redirect("attendance:leave_requests")
+
+
+@method_decorator(login_required, name="dispatch")
+class LeaveRequestStatusUpdateView(
+    PermissionRequiredMixin, NoticeCreateMixin, View
+):
+    """Shared status update behavior for leave requests."""
+
+    module_slug = "attendance"
+    permission_codename = "approve_leave"
+    status = None
+    success_message = ""
+    notice_title = ""
+    notice_roles = ["student", "parent"]
+    leave_request = None
+
+    def get(self, request, pk):
+        return redirect("attendance:leave_requests")
+
+    def post(self, request, pk):
+        self.leave_request = get_object_or_404(LeaveRequest, id=pk)
+        remarks = request.POST.get("remarks", "")
+
+        self.leave_request.status = self.status
+        self.leave_request.approved_by = (
+            request.user.teacher_profile
+            if hasattr(request.user, "teacher_profile")
+            else None
+        )
+        self.leave_request.remarks = remarks
+        self.leave_request.save()
+        self.create_notice_from_request()
+
+        messages.success(self.request, self.success_message)
+        return redirect("attendance:leave_requests")
+
+    def get_notice_title(self):
+        return self.notice_title
+
+    def get_notice_content(self):
+        student_name = self.leave_request.student.get_full_name()
+        return (
+            f"Leave for {student_name} was {self.status} from "
+            f"{self.leave_request.from_date} to {self.leave_request.to_date}."
+        )
+
+    def get_notice_roles(self):
+        return self.notice_roles
+
+    def get_notice_classes(self):
+        return [self.leave_request.student.class_level_id]
+
+
+@method_decorator(login_required, name="dispatch")
+class LeaveRequestApproveView(LeaveRequestStatusUpdateView):
     """Approve a leave request."""
-    leave_request = get_object_or_404(LeaveRequest, id=pk)
 
-    if request.method == "POST":
-        remarks = request.POST.get("remarks", "")
-
-        leave_request.status = "approved"
-        leave_request.approved_by = (
-            request.user.teacher_profile
-            if hasattr(request.user, "teacher_profile")
-            else None
-        )
-        leave_request.remarks = remarks
-        leave_request.save()
-
-        messages.success(request, "Leave request approved.")
-
-    return redirect("attendance:leave_requests")
+    status = "approved"
+    success_message = "Leave request approved."
+    notice_title = "Leave request approved"
 
 
-@login_required
-@permission_required("attendance", "approve_leave")
-def leave_request_reject(request, pk):
+@method_decorator(login_required, name="dispatch")
+class LeaveRequestRejectView(LeaveRequestStatusUpdateView):
     """Reject a leave request."""
-    leave_request = get_object_or_404(LeaveRequest, id=pk)
 
-    if request.method == "POST":
-        remarks = request.POST.get("remarks", "")
+    status = "rejected"
+    success_message = "Leave request rejected."
+    notice_title = "Leave request rejected"
 
-        leave_request.status = "rejected"
-        leave_request.approved_by = (
-            request.user.teacher_profile
-            if hasattr(request.user, "teacher_profile")
-            else None
-        )
-        leave_request.remarks = remarks
-        leave_request.save()
 
-        messages.success(request, "Leave request rejected.")
-
-    return redirect("attendance:leave_requests")
+leave_request_create = LeaveRequestCreateView.as_view()
+leave_request_edit = ParentLeaveRequestUpdateView.as_view()
+leave_request_delete = ParentLeaveRequestDeleteView.as_view()
+leave_request_approve = LeaveRequestApproveView.as_view()
+leave_request_reject = LeaveRequestRejectView.as_view()
 
 
 @login_required

@@ -27,7 +27,12 @@ FIXED_MODULES = [
         "icon": "fa fa-calendar-check",
         "description": "Attendance tracking",
         "order": 3,
-        "permissions": ["mark", "approve_leave", "view_reports"],
+        "permissions": [
+            "mark",
+            "apply_leave",
+            "approve_leave",
+            "view_reports",
+        ],
     },
     {
         "name": "Examinations",
@@ -43,7 +48,7 @@ FIXED_MODULES = [
         "icon": "fa fa-dollar-sign",
         "description": "Fee management",
         "order": 5,
-        "permissions": ["collect", "export"],
+        "permissions": ["collect", "export", "manage_fee"],
     },
     {
         "name": "Library",
@@ -125,15 +130,6 @@ class Command(BaseCommand):
                 },
             )
 
-            if not created:
-                skipped_count += 1
-                self.stdout.write(
-                    self.style.WARNING(
-                        f"Skipped existing module: {module.slug}"
-                    )
-                )
-                continue
-
             for index, (permission_code, label) in enumerate(
                 CORE_PERMISSION_TYPES
             ):
@@ -158,10 +154,18 @@ class Command(BaseCommand):
                     },
                 )
 
-            created_count += 1
-            self.stdout.write(
-                self.style.SUCCESS(f"Created module: {module.slug}")
-            )
+            if created:
+                created_count += 1
+                self.stdout.write(
+                    self.style.SUCCESS(f"Created module: {module.slug}")
+                )
+            else:
+                skipped_count += 1
+                self.stdout.write(
+                    self.style.WARNING(
+                        f"Synced permissions for existing module: {module.slug}"
+                    )
+                )
 
         self.stdout.write(
             self.style.SUCCESS(

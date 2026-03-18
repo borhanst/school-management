@@ -50,3 +50,10 @@ def has_permission_key(
     return SUPERUSER_PERMISSION in permissions or build_permission_key(
         module_slug, permission_codename
     ) in permissions
+
+
+def is_module_active(module_slug: str) -> bool:
+    """Return whether the named module exists and is active."""
+    from roles.models import Module
+
+    return Module.objects.filter(slug=module_slug, is_active=True).exists()
