@@ -1,0 +1,52 @@
+{% extends "settings/base.html" %}
+
+{% block settings_content %}
+<h1 class="text-2xl font-bold text-gray-800 mb-6">Settings Dashboard</h1>
+
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+    <a href="{% url 'settings:school-info' %}" class="bg-white p-6 rounded-lg shadow hover:shadow-md transition">
+        <h3 class="text-lg font-semibold text-gray-800">School Info</h3>
+        <p class="text-sm text-gray-500 mt-1">Name, EIIN, Board, Medium, Type</p>
+    </a>
+    <a href="{% url 'settings:academic' %}" class="bg-white p-6 rounded-lg shadow hover:shadow-md transition">
+        <h3 class="text-lg font-semibold text-gray-800">Academic</h3>
+        <p class="text-sm text-gray-500 mt-1">Year, Terms, Timings, Sections</p>
+    </a>
+    <a href="{% url 'settings:grading' %}" class="bg-white p-6 rounded-lg shadow hover:shadow-md transition">
+        <h3 class="text-lg font-semibold text-gray-800">Grading</h3>
+        <p class="text-sm text-gray-500 mt-1">GPA Scale, Grade Points</p>
+    </a>
+    <a href="{% url 'settings:attendance' %}" class="bg-white p-6 rounded-lg shadow hover:shadow-md transition">
+        <h3 class="text-lg font-semibold text-gray-800">Attendance</h3>
+        <p class="text-sm text-gray-500 mt-1">Minimum %, Late Threshold</p>
+    </a>
+    <a href="{% url 'settings:examination' %}" class="bg-white p-6 rounded-lg shadow hover:shadow-md transition">
+        <h3 class="text-lg font-semibold text-gray-800">Examination</h3>
+        <p class="text-sm text-gray-500 mt-1">Exam Types, Mark Distribution</p>
+    </a>
+    <a href="{% url 'settings:promotion' %}" class="bg-white p-6 rounded-lg shadow hover:shadow-md transition">
+        <h3 class="text-lg font-semibold text-gray-800">Promotion</h3>
+        <p class="text-sm text-gray-500 mt-1">Min GPA, Supplementary Exam</p>
+    </a>
+    <a href="{% url 'settings:student' %}" class="bg-white p-6 rounded-lg shadow hover:shadow-md transition">
+        <h3 class="text-lg font-semibold text-gray-800">Student</h3>
+        <p class="text-sm text-gray-500 mt-1">Admission No Format, Required Fields</p>
+    </a>
+    <a href="{% url 'settings:fee' %}" class="bg-white p-6 rounded-lg shadow hover:shadow-md transition">
+        <h3 class="text-lg font-semibold text-gray-800">Fee</h3>
+        <p class="text-sm text-gray-500 mt-1">Currency, Late Fee, Receipt</p>
+    </a>
+    <a href="{% url 'settings:library' %}" class="bg-white p-6 rounded-lg shadow hover:shadow-md transition">
+        <h3 class="text-lg font-semibold text-gray-800">Library</h3>
+        <p class="text-sm text-gray-500 mt-1">Max Books, Issue Duration, Fine</p>
+    </a>
+    <a href="{% url 'settings:transport' %}" class="bg-white p-6 rounded-lg shadow hover:shadow-md transition">
+        <h3 class="text-lg font-semibold text-gray-800">Transport</h3>
+        <p class="text-sm text-gray-500 mt-1">Fare Calculation, Monthly Fee</p>
+    </a>
+    <a href="{% url 'settings:report-card' %}" class="bg-white p-6 rounded-lg shadow hover:shadow-md transition">
+        <h3 class="text-lg font-semibold text-gray-800">Report Card</h3>
+        <p class="text-sm text-gray-500 mt-1">Display Options, Signatures</p>
+    </a>
+</div>
+{% endblock %}

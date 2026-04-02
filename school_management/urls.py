@@ -39,8 +39,9 @@ urlpatterns = [
     ),
     # Reports
     path("reports/", include("reports.urls", namespace="reports")),
-    # Home
-    path("", include("dashboard.urls", namespace="home")),
+    # Settings
+    path("settings/", include("settings_app.urls", namespace="settings")),
+    # Settings
 ]
 
 # Media files

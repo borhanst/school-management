@@ -8,6 +8,7 @@
         if (path.startsWith('/attendance/')) return 'attendance';
         if (path.startsWith('/examinations/')) return 'examinations';
         if (path.startsWith('/reports/')) return 'reports';
+        if (path.startsWith('/settings/')) return 'settings';
         if (path.startsWith('/accounts/settings') || path.startsWith('/fees/settings/')) return 'settings';
         return null;
     })(),
@@ -271,23 +272,59 @@
     <div x-data="{}">
         <button @click="openMenu = openMenu === 'settings' ? null : 'settings'" 
                 class="w-full flex items-center px-4 py-2.5 text-gray-700 rounded-lg hover:bg-gray-100"
-                :class="isActive('/accounts/settings') || isActive('/fees/settings/') ? 'bg-primary-50 text-primary-600' : ''">
+                :class="isActive('/settings/') ? 'bg-primary-50 text-primary-600' : ''">
             <i class="fas fa-cogs w-6"></i>
             <span class="font-medium flex-1 text-left">Settings</span>
             <i class="fas fa-chevron-down text-xs transition-transform" :class="openMenu === 'settings' ? 'rotate-180' : ''"></i>
         </button>
         <div x-show="openMenu === 'settings'" x-collapse class="ml-4 mt-1 space-y-1">
-            <a href="{% url 'accounts:settings' %}" class="flex items-center px-4 py-2 text-sm text-gray-600 rounded-lg hover:bg-gray-100"
-               :class="window.location.pathname === '/accounts/settings/' ? 'bg-gray-100' : ''">
-                <i class="fas fa-sliders-h w-5"></i> System Settings
+            <a href="{% url 'settings:index' %}" class="flex items-center px-4 py-2 text-sm text-gray-600 rounded-lg hover:bg-gray-100"
+               :class="window.location.pathname === '/settings/' ? 'bg-gray-100' : ''">
+                <i class="fas fa-th w-5"></i> Dashboard
             </a>
-            <a href="{% url 'fees:fee_type_list' %}" class="flex items-center px-4 py-2 text-sm text-gray-600 rounded-lg hover:bg-gray-100"
-               :class="isActive('/fees/settings/fee-types') ? 'bg-gray-100' : ''">
-                <i class="fas fa-tags w-5"></i> Fee Types
+            <a href="{% url 'settings:school-info' %}" class="flex items-center px-4 py-2 text-sm text-gray-600 rounded-lg hover:bg-gray-100"
+               :class="isActive('/settings/school-info') ? 'bg-gray-100' : ''">
+                <i class="fas fa-school w-5"></i> School Info
             </a>
-            <a href="{% url 'fees:fee_structure_list' %}" class="flex items-center px-4 py-2 text-sm text-gray-600 rounded-lg hover:bg-gray-100"
-               :class="isActive('/fees/settings/fee-structures') ? 'bg-gray-100' : ''">
-                <i class="fas fa-layer-group w-5"></i> Fee Structures
+            <a href="{% url 'settings:academic' %}" class="flex items-center px-4 py-2 text-sm text-gray-600 rounded-lg hover:bg-gray-100"
+               :class="isActive('/settings/academic') ? 'bg-gray-100' : ''">
+                <i class="fas fa-calendar w-5"></i> Academic
+            </a>
+            <a href="{% url 'settings:grading' %}" class="flex items-center px-4 py-2 text-sm text-gray-600 rounded-lg hover:bg-gray-100"
+               :class="isActive('/settings/grading') ? 'bg-gray-100' : ''">
+                <i class="fas fa-star w-5"></i> Grading
+            </a>
+            <a href="{% url 'settings:attendance' %}" class="flex items-center px-4 py-2 text-sm text-gray-600 rounded-lg hover:bg-gray-100"
+               :class="isActive('/settings/attendance') ? 'bg-gray-100' : ''">
+                <i class="fas fa-calendar-check w-5"></i> Attendance
+            </a>
+            <a href="{% url 'settings:examination' %}" class="flex items-center px-4 py-2 text-sm text-gray-600 rounded-lg hover:bg-gray-100"
+               :class="isActive('/settings/examination') ? 'bg-gray-100' : ''">
+                <i class="fas fa-clipboard-list w-5"></i> Examination
+            </a>
+            <a href="{% url 'settings:promotion' %}" class="flex items-center px-4 py-2 text-sm text-gray-600 rounded-lg hover:bg-gray-100"
+               :class="isActive('/settings/promotion') ? 'bg-gray-100' : ''">
+                <i class="fas fa-arrow-up w-5"></i> Promotion
+            </a>
+            <a href="{% url 'settings:student' %}" class="flex items-center px-4 py-2 text-sm text-gray-600 rounded-lg hover:bg-gray-100"
+               :class="isActive('/settings/student') ? 'bg-gray-100' : ''">
+                <i class="fas fa-user-graduate w-5"></i> Student
+            </a>
+            <a href="{% url 'settings:fee' %}" class="flex items-center px-4 py-2 text-sm text-gray-600 rounded-lg hover:bg-gray-100"
+               :class="isActive('/settings/fee') ? 'bg-gray-100' : ''">
+                <i class="fas fa-dollar-sign w-5"></i> Fee
+            </a>
+            <a href="{% url 'settings:library' %}" class="flex items-center px-4 py-2 text-sm text-gray-600 rounded-lg hover:bg-gray-100"
+               :class="isActive('/settings/library') ? 'bg-gray-100' : ''">
+                <i class="fas fa-book-reader w-5"></i> Library
+            </a>
+            <a href="{% url 'settings:transport' %}" class="flex items-center px-4 py-2 text-sm text-gray-600 rounded-lg hover:bg-gray-100"
+               :class="isActive('/settings/transport') ? 'bg-gray-100' : ''">
+                <i class="fas fa-bus w-5"></i> Transport
+            </a>
+            <a href="{% url 'settings:report-card' %}" class="flex items-center px-4 py-2 text-sm text-gray-600 rounded-lg hover:bg-gray-100"
+               :class="isActive('/settings/report-card') ? 'bg-gray-100' : ''">
+                <i class="fas fa-file-alt w-5"></i> Report Card
             </a>
         </div>
     </div>
