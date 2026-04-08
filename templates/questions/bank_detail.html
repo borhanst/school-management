@@ -1,0 +1,214 @@
+{% extends 'base.html' %}
+{% load permission_tags %}
+
+{% block title %}{{ bank.name }} - School Management System{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+    <a href="{% url 'questions:bank_list' %}" class="text-primary-600 hover:text-primary-700">
+        <i class="fas fa-arrow-left mr-2"></i>Back to Question Banks
+    </a>
+</div>
+
+<!-- Bank Header -->
+<div class="bg-white rounded-xl shadow-sm p-6 mb-6 border border-gray-100">
+    <div class="flex items-start justify-between">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-800">{{ bank.name }}</h1>
+            <div class="mt-2 flex flex-wrap gap-4 text-sm text-gray-600">
+                <span><i class="fas fa-graduation-cap mr-1"></i>{{ bank.class_level.name }}</span>
+                <span><i class="fas fa-book mr-1"></i>{{ bank.subject.name }}</span>
+                {% if bank.topic %}
+                <span><i class="fas fa-tag mr-1"></i>{{ bank.topic }}</span>
+                {% endif %}
+                {% if bank.term %}
+                <span><i class="fas fa-calendar-alt mr-1"></i>{{ bank.term.name }}</span>
+                {% endif %}
+            </div>
+            {% if bank.description %}
+            <p class="mt-3 text-gray-600">{{ bank.description }}</p>
+            {% endif %}
+        </div>
+        <div class="flex gap-2">
+            {% if user|has_permission:'questions.view' %}
+            <a href="{% url 'questions:export_paper' bank.pk %}" 
+               class="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
+                <i class="fas fa-file-export mr-2"></i>Export Paper
+            </a>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Stats -->
+<div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+    <div class="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+        <div class="text-sm text-gray-600">Total Questions</div>
+        <div class="text-2xl font-bold text-gray-900">{{ total_questions }}</div>
+    </div>
+    <div class="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+        <div class="text-sm text-gray-600">MCQ Questions</div>
+        <div class="text-2xl font-bold text-blue-600">{{ mcq_questions.count }}</div>
+    </div>
+    <div class="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+        <div class="text-sm text-gray-600">Creative Questions</div>
+        <div class="text-2xl font-bold text-green-600">{{ creative_questions.count }}</div>
+    </div>
+    <div class="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+        <div class="text-sm text-gray-600">Short Answer</div>
+        <div class="text-2xl font-bold text-orange-600">{{ short_questions.count }}</div>
+    </div>
+</div>
+
+<!-- MCQ Questions -->
+{% if mcq_questions %}
+<div class="bg-white rounded-xl shadow-sm border border-gray-100 mb-6">
+    <div class="p-4 border-b border-gray-100 bg-blue-50">
+        <h2 class="text-lg font-semibold text-blue-900">
+            <i class="fas fa-list-ul mr-2"></i>MCQ Questions ({{ mcq_questions.count }})
+        </h2>
+    </div>
+    <div class="divide-y divide-gray-100">
+        {% for question in mcq_questions %}
+        <div class="p-4 hover:bg-gray-50 transition-colors">
+            <div class="flex items-start justify-between">
+                <div class="flex-1">
+                    <div class="flex items-center gap-2 mb-2">
+                        {% if question.is_approved %}
+                        <span class="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full">Approved</span>
+                        {% else %}
+                        <span class="px-2 py-1 bg-yellow-100 text-yellow-700 text-xs rounded-full">Pending Review</span>
+                        {% endif %}
+                        {% if question.ai_generated %}
+                        <span class="px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded-full">
+                            <i class="fas fa-robot mr-1"></i>AI Generated
+                        </span>
+                        {% endif %}
+                        <span class="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-full">{{ question.get_difficulty_display }}</span>
+                    </div>
+                    <p class="text-gray-900 font-medium">{{ forloop.counter }}. {{ question.question_text }}</p>
+                    {% if question.question_text_bn %}
+                    <p class="text-gray-600 mt-1">{{ question.question_text_bn }}</p>
+                    {% endif %}
+                    <div class="mt-3 grid grid-cols-2 gap-2 text-sm">
+                        {% for option in question.options.all %}
+                        <div class="{% if option.is_correct %}bg-green-50 border-green-200{% else %}bg-gray-50{% endif %} border rounded p-2">
+                            <span class="font-medium">{{ option.label }}.</span> {{ option.option_text }}
+                            {% if option.is_correct %}<i class="fas fa-check text-green-600 ml-2"></i>{% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% if user|has_permission:'questions.edit' %}
+                <a href="{% url 'questions:question_edit' question.pk %}" 
+                   class="ml-4 px-3 py-1 text-sm bg-primary-100 text-primary-700 rounded hover:bg-primary-200">
+                    <i class="fas fa-edit"></i>
+                </a>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Creative Questions -->
+{% if creative_questions %}
+<div class="bg-white rounded-xl shadow-sm border border-gray-100 mb-6">
+    <div class="p-4 border-b border-gray-100 bg-green-50">
+        <h2 class="text-lg font-semibold text-green-900">
+            <i class="fas fa-lightbulb mr-2"></i>Creative Questions ({{ creative_questions.count }})
+        </h2>
+    </div>
+    <div class="divide-y divide-gray-100">
+        {% for question in creative_questions %}
+        <div class="p-4 hover:bg-gray-50 transition-colors">
+            <div class="flex items-start justify-between">
+                <div class="flex-1">
+                    <div class="flex items-center gap-2 mb-2">
+                        {% if question.is_approved %}
+                        <span class="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full">Approved</span>
+                        {% else %}
+                        <span class="px-2 py-1 bg-yellow-100 text-yellow-700 text-xs rounded-full">Pending Review</span>
+                        {% endif %}
+                        <span class="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-full">{{ question.get_difficulty_display }}</span>
+                        <span class="px-2 py-1 bg-indigo-100 text-indigo-700 text-xs rounded-full">{{ question.get_bloom_level_display }}</span>
+                    </div>
+                    <div class="whitespace-pre-line text-gray-900">{{ question.question_text }}</div>
+                    {% if question.question_text_bn %}
+                    <div class="mt-2 whitespace-pre-line text-gray-600">{{ question.question_text_bn }}</div>
+                    {% endif %}
+                    {% if question.answer_explanation %}
+                    <details class="mt-2">
+                        <summary class="text-sm text-gray-600 cursor-pointer">Show Answer/Explanation</summary>
+                        <div class="mt-2 p-3 bg-gray-50 rounded text-sm">{{ question.answer_explanation }}</div>
+                    </details>
+                    {% endif %}
+                </div>
+                {% if user|has_permission:'questions.edit' %}
+                <a href="{% url 'questions:question_edit' question.pk %}" 
+                   class="ml-4 px-3 py-1 text-sm bg-primary-100 text-primary-700 rounded hover:bg-primary-200">
+                    <i class="fas fa-edit"></i>
+                </a>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Short Answer Questions -->
+{% if short_questions %}
+<div class="bg-white rounded-xl shadow-sm border border-gray-100">
+    <div class="p-4 border-b border-gray-100 bg-orange-50">
+        <h2 class="text-lg font-semibold text-orange-900">
+            <i class="fas fa-pen mr-2"></i>Short Answer Questions ({{ short_questions.count }})
+        </h2>
+    </div>
+    <div class="divide-y divide-gray-100">
+        {% for question in short_questions %}
+        <div class="p-4 hover:bg-gray-50 transition-colors">
+            <div class="flex items-start justify-between">
+                <div class="flex-1">
+                    <div class="flex items-center gap-2 mb-2">
+                        {% if question.is_approved %}
+                        <span class="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full">Approved</span>
+                        {% else %}
+                        <span class="px-2 py-1 bg-yellow-100 text-yellow-700 text-xs rounded-full">Pending Review</span>
+                        {% endif %}
+                        <span class="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-full">{{ question.get_difficulty_display }}</span>
+                        <span class="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full">{{ question.marks }} marks</span>
+                    </div>
+                    <p class="text-gray-900 font-medium">{{ question.question_text }}</p>
+                    {% if question.question_text_bn %}
+                    <p class="text-gray-600 mt-1">{{ question.question_text_bn }}</p>
+                    {% endif %}
+                    {% if question.answer_explanation %}
+                    <details class="mt-2">
+                        <summary class="text-sm text-gray-600 cursor-pointer">Show Answer</summary>
+                        <div class="mt-2 p-3 bg-gray-50 rounded text-sm">{{ question.answer_explanation }}</div>
+                    </details>
+                    {% endif %}
+                </div>
+                {% if user|has_permission:'questions.edit' %}
+                <a href="{% url 'questions:question_edit' question.pk %}" 
+                   class="ml-4 px-3 py-1 text-sm bg-primary-100 text-primary-700 rounded hover:bg-primary-200">
+                    <i class="fas fa-edit"></i>
+                </a>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+{% if not total_questions %}
+<div class="bg-white rounded-xl shadow-sm p-12 text-center border border-gray-100">
+    <i class="fas fa-inbox text-6xl text-gray-300 mb-4"></i>
+    <h3 class="text-lg font-medium text-gray-900 mb-2">No Questions Yet</h3>
+    <p class="text-gray-500 mb-6">Add questions manually or use AI to generate questions from textbook images.</p>
+</div>
+{% endif %}
+{% endblock %}

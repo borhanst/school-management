@@ -1,0 +1,104 @@
+{% extends 'base.html' %}
+{% load permission_tags %}
+
+{% block title %}Generation Status - School Management System{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100">
+        <div class="p-6 border-b border-gray-100">
+            <h1 class="text-2xl font-bold text-gray-800">AI Generation Status</h1>
+        </div>
+        
+        <div class="p-6">
+            <!-- Status Indicator -->
+            <div class="text-center mb-6">
+                {% if gen_request.status == "pending" %}
+                <div class="inline-flex items-center justify-center w-20 h-20 bg-yellow-100 rounded-full mb-4">
+                    <i class="fas fa-clock text-4xl text-yellow-600"></i>
+                </div>
+                <h2 class="text-xl font-semibold text-yellow-700">Pending</h2>
+                <p class="text-gray-600 mt-2">Your request is queued for processing</p>
+                
+                {% elif gen_request.status == "processing" %}
+                <div class="inline-flex items-center justify-center w-20 h-20 bg-blue-100 rounded-full mb-4 animate-pulse">
+                    <i class="fas fa-cog fa-spin text-4xl text-blue-600"></i>
+                </div>
+                <h2 class="text-xl font-semibold text-blue-700">Processing</h2>
+                <p class="text-gray-600 mt-2">AI is analyzing your image and generating questions...</p>
+                <div class="mt-4">
+                    <div class="w-full bg-gray-200 rounded-full h-2.5">
+                        <div class="bg-blue-600 h-2.5 rounded-full animate-pulse" style="width: 60%"></div>
+                    </div>
+                </div>
+                
+                {% elif gen_request.status == "completed" %}
+                <div class="inline-flex items-center justify-center w-20 h-20 bg-green-100 rounded-full mb-4">
+                    <i class="fas fa-check-circle text-4xl text-green-600"></i>
+                </div>
+                <h2 class="text-xl font-semibold text-green-700">Completed</h2>
+                <p class="text-gray-600 mt-2">Questions have been generated successfully</p>
+                <div class="mt-6">
+                    <a href="{% url 'questions:generation_review' gen_request.pk %}" 
+                       class="inline-flex items-center px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
+                        <i class="fas fa-eye mr-2"></i>Review Generated Questions
+                    </a>
+                </div>
+                
+                {% elif gen_request.status == "failed" %}
+                <div class="inline-flex items-center justify-center w-20 h-20 bg-red-100 rounded-full mb-4">
+                    <i class="fas fa-times-circle text-4xl text-red-600"></i>
+                </div>
+                <h2 class="text-xl font-semibold text-red-700">Failed</h2>
+                <p class="text-gray-600 mt-2">Generation encountered an error</p>
+                {% if gen_request.error_message %}
+                <div class="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg text-left">
+                    <p class="text-sm text-red-700 font-mono">{{ gen_request.error_message }}</p>
+                </div>
+                {% endif %}
+                <div class="mt-6">
+                    <a href="{% url 'questions:ai_generate' %}?retry={{ gen_request.pk }}"
+                       class="inline-flex items-center px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors">
+                        <i class="fas fa-redo mr-2"></i>Try Again
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+            
+            <!-- Request Details -->
+            <div class="border-t border-gray-100 pt-6">
+                <h3 class="text-sm font-medium text-gray-700 mb-3">Request Details</h3>
+                <dl class="space-y-2 text-sm">
+                    <div class="flex justify-between">
+                        <dt class="text-gray-600">Class:</dt>
+                        <dd class="font-medium">{{ gen_request.class_level.name }}</dd>
+                    </div>
+                    <div class="flex justify-between">
+                        <dt class="text-gray-600">Subject:</dt>
+                        <dd class="font-medium">{{ gen_request.subject.name }}</dd>
+                    </div>
+                    <div class="flex justify-between">
+                        <dt class="text-gray-600">Questions Requested:</dt>
+                        <dd class="font-medium">{{ gen_request.total_questions_requested }}</dd>
+                    </div>
+                    <div class="flex justify-between">
+                        <dt class="text-gray-600">Language:</dt>
+                        <dd class="font-medium">{{ gen_request.language|title }}</dd>
+                    </div>
+                    <div class="flex justify-between">
+                        <dt class="text-gray-600">Submitted:</dt>
+                        <dd class="font-medium">{{ gen_request.created_at|date:"M d, Y H:i" }}</dd>
+                    </div>
+                </dl>
+                
+                <!-- Uploaded Image Preview -->
+                <div class="mt-4">
+                    <p class="text-sm font-medium text-gray-700 mb-2">Uploaded Image:</p>
+                    <img src="{{ gen_request.uploaded_image.url }}" alt="Uploaded textbook page" 
+                         class="max-h-48 rounded border border-gray-200">
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

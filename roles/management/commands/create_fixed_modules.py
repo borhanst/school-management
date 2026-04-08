@@ -104,6 +104,14 @@ FIXED_MODULES = [
             "manage_roles",
         ],
     },
+    {
+        "name": "Questions",
+        "slug": "questions",
+        "icon": "fa fa-question-circle",
+        "description": "Question bank and AI generation",
+        "order": 12,
+        "permissions": ["ai_generate", "export"],
+    },
 ]
 
 

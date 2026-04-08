@@ -26,6 +26,8 @@ urlpatterns = [
     path(
         "examinations/", include("examinations.urls", namespace="examinations")
     ),
+    # Questions
+    path("questions/", include("questions.urls", namespace="questions")),
     # Fees
     path("fees/", include("fees.urls", namespace="fees")),
     # Library
