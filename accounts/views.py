@@ -1,6 +1,7 @@
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
+from django.db.models import Q
 from django.http import HttpResponseForbidden
 from django.shortcuts import redirect, render
 from django.urls import reverse_lazy
@@ -13,6 +14,7 @@ from roles.services import assign_default_role_to_user
 
 from .forms import (
     LoginForm,
+    ParentProfileForm,
     TeacherProfileForm,
     UserProfileForm,
     UserRegistrationForm,
@@ -33,6 +35,9 @@ def login_view(request):
             user = authenticate(username=username, password=password)
             if user is not None:
                 login(request, user)
+                remember = request.POST.get("remember")
+                if remember:
+                    request.session.set_expiry(1209600)
                 messages.success(
                     request, f"Welcome back, {user.get_full_name()}!"
                 )
@@ -52,17 +57,16 @@ def logout_view(request):
 
 
 def register_view(request):
-    """User registration view."""
+    """Parent registration view."""
     if request.user.is_authenticated:
         return redirect("dashboard:index")
 
     if request.method == "POST":
         form = UserRegistrationForm(request.POST)
         if form.is_valid():
-            user = form.save()
-            login(request, user)
-            messages.success(request, "Registration successful!")
-            return redirect("dashboard:index")
+            form.save()
+            messages.success(request, "Registration successful! Please login with your credentials.")
+            return redirect("accounts:login")
     else:
         form = UserRegistrationForm()
 
@@ -206,3 +210,86 @@ class TeacherUpdateView(PermissionRequiredMixin, UpdateView):
     success_url = reverse_lazy("accounts:teachers")
     module_slug = "accounts"
     permission_codename = "edit_user"
+
+
+@login_required
+def parent_dashboard(request):
+    """Parent dashboard showing their children."""
+    if request.user.role != "parent" or not hasattr(
+        request.user, "parent_profile"
+    ):
+        messages.error(request, "Access denied.")
+        return redirect("dashboard:index")
+
+    parent_profile = request.user.parent_profile
+    children = parent_profile.children.select_related(
+        "user", "class_level", "section", "academic_year"
+    ).filter(is_active=True)
+
+    context = {
+        "parent_profile": parent_profile,
+        "children": children,
+    }
+    return render(request, "accounts/parent_dashboard.html", context)
+
+
+@login_required
+def parent_profile_update(request):
+    """Update parent profile."""
+    if request.user.role != "parent" or not hasattr(
+        request.user, "parent_profile"
+    ):
+        messages.error(request, "Access denied.")
+        return redirect("dashboard:index")
+
+    parent_profile = request.user.parent_profile
+
+    if request.method == "POST":
+        user_form = UserProfileForm(
+            request.POST, request.FILES, instance=request.user
+        )
+        profile_form = ParentProfileForm(request.POST, instance=parent_profile)
+
+        if user_form.is_valid() and profile_form.is_valid():
+            user_form.save()
+            profile_form.save()
+            messages.success(request, "Profile updated successfully!")
+            return redirect("accounts:parent_profile")
+    else:
+        user_form = UserProfileForm(instance=request.user)
+        profile_form = ParentProfileForm(instance=parent_profile)
+
+    context = {
+        "user_form": user_form,
+        "profile_form": profile_form,
+    }
+    return render(request, "accounts/parent_profile_form.html", context)
+
+
+@login_required
+def parent_children_list(request):
+    """List all children for a parent."""
+    if request.user.role != "parent" or not hasattr(
+        request.user, "parent_profile"
+    ):
+        messages.error(request, "Access denied.")
+        return redirect("dashboard:index")
+
+    parent_profile = request.user.parent_profile
+    children = parent_profile.children.select_related(
+        "user", "class_level", "section", "academic_year"
+    )
+
+    search = request.GET.get("q")
+    if search:
+        children = children.filter(
+            Q(user__first_name__icontains=search)
+            | Q(user__last_name__icontains=search)
+            | Q(admission_no__icontains=search)
+        )
+
+    context = {
+        "children": children,
+        "parent_profile": parent_profile,
+    }
+    return render(request, "accounts/parent_children_list.html", context)

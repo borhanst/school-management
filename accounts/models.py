@@ -1,4 +1,4 @@
-from django.contrib.auth.models import AbstractUser
+from django.contrib.auth.models import AbstractUser, UserManager
 from django.core.cache import cache
 from django.db import models
 from django.db.models import Q
@@ -8,7 +8,13 @@ from django.utils.translation import gettext_lazy as _
 from roles.permissions import is_module_active
 
 
+class CustomUserManager(UserManager):
+    def create_superuser(self, username, email=None, password=None, **extra_fields):
+        return super().create_superuser(username, email, password, **extra_fields)
+
+
 class User(AbstractUser):
+    objects = CustomUserManager()
     """Custom User model using the built-in role field only."""
 
     ROLE_CHOICES = [
@@ -38,7 +44,7 @@ class User(AbstractUser):
     role = models.CharField(
         max_length=20, choices=ROLE_CHOICES, default="student"
     )
-    phone = models.CharField(max_length=20, blank=True)
+    phone = models.CharField(max_length=20,null=True, unique=True)
     address = models.TextField(blank=True)
     photo = models.ImageField(upload_to="users/photos/", blank=True, null=True)
     gender = models.CharField(max_length=10, choices=GENDER_CHOICES, blank=True)
@@ -46,6 +52,8 @@ class User(AbstractUser):
         max_length=5, choices=BLOOD_GROUP_CHOICES, blank=True
     )
     date_of_birth = models.DateField(null=True, blank=True)
+
+    REQUIRED_FIELDS = ["email", "phone"]
 
     class Meta:
         db_table = "accounts_user"
@@ -102,10 +110,10 @@ class User(AbstractUser):
     ):
         if not self.is_active:
             return False
-        if not is_module_active(module_slug):
-            return False
         if self.is_superuser:
             return True
+        if not is_module_active(module_slug):
+            return False
 
         permission_key = f"{module_slug}_{permission_codename}"
         if permission_key in self._get_denied_permissions():

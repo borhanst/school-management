@@ -37,15 +37,10 @@ class ManageRolesPermissionMixin(PermissionRequiredMixin):
 
     def has_permission(self):
         user = self.request.user
-        return (
-            is_module_active(self.module_slug)
-            and (
-                user.is_superuser
-                or user.role == "admin"
-                or user.has_permission(
-                    self.module_slug, self.permission_codename
-                )
-            )
+        if user.is_superuser or user.role == "admin":
+            return True
+        return is_module_active(self.module_slug) and user.has_permission(
+            self.module_slug, self.permission_codename
         )
 
 

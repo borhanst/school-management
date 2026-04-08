@@ -6,56 +6,71 @@ from roles.services import assign_default_role_to_user
 from .models import ParentProfile, TeacherProfile, User
 
 
+FIELD_CSS = "w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
+PASSWORD_CSS = "w-full pl-10 pr-10 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
+
+
 class LoginForm(AuthenticationForm):
-    """Login form."""
+    """Login with email or phone number."""
 
     username = forms.CharField(
+        label="Email or Phone",
         widget=forms.TextInput(
             attrs={
-                "class": "w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent",
-                "placeholder": "Username or Email",
+                "class": FIELD_CSS,
+                "placeholder": "Email or Phone Number",
+                "autocomplete": "username",
             }
-        )
+        ),
     )
     password = forms.CharField(
         widget=forms.PasswordInput(
             attrs={
-                "class": "w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent",
+                "class": PASSWORD_CSS,
                 "placeholder": "Password",
+                "autocomplete": "current-password",
             }
         )
     )
 
+    def clean_username(self):
+        value = self.cleaned_data.get("username", "").strip()
+        if not value:
+            return value
+        if "@" in value:
+            user = User.objects.filter(email__iexact=value).first()
+        else:
+            user = User.objects.filter(phone=value).first()
+        if user:
+            return user.username
+        raise forms.ValidationError("No account found with that email or phone number.")
+
 
 class UserRegistrationForm(UserCreationForm):
-    """User registration form."""
+    """User registration form for parents only."""
 
-    ROLE_CHOICES = [
-        ("student", "Student"),
-        ("parent", "Parent"),
-        ("teacher", "Teacher"),
-    ]
-
-    username = forms.CharField(
+    phone = forms.CharField(
         widget=forms.TextInput(
             attrs={
-                "class": "w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent",
-                "placeholder": "Username",
+                "class": FIELD_CSS,
+                "placeholder": "Phone Number",
+                "autocomplete": "tel",
             }
-        )
+        ),
     )
     email = forms.EmailField(
         widget=forms.EmailInput(
             attrs={
-                "class": "w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent",
+                "class": FIELD_CSS,
                 "placeholder": "Email Address",
+                "autocomplete": "email",
             }
         )
     )
     first_name = forms.CharField(
         widget=forms.TextInput(
             attrs={
-                "class": "w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent",
+                "class": FIELD_CSS,
                 "placeholder": "First Name",
             }
         )
@@ -63,34 +78,18 @@ class UserRegistrationForm(UserCreationForm):
     last_name = forms.CharField(
         widget=forms.TextInput(
             attrs={
-                "class": "w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent",
+                "class": FIELD_CSS,
                 "placeholder": "Last Name",
             }
         )
-    )
-    role = forms.ChoiceField(
-        choices=ROLE_CHOICES,
-        widget=forms.Select(
-            attrs={
-                "class": "w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-            }
-        ),
-    )
-    phone = forms.CharField(
-        required=False,
-        widget=forms.TextInput(
-            attrs={
-                "class": "w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent",
-                "placeholder": "Phone Number",
-            }
-        ),
     )
     password1 = forms.CharField(
         label="Password",
         widget=forms.PasswordInput(
             attrs={
-                "class": "w-full px-4 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent",
+                "class": PASSWORD_CSS,
                 "placeholder": "Password",
+                "autocomplete": "new-password",
             }
         ),
     )
@@ -98,41 +97,55 @@ class UserRegistrationForm(UserCreationForm):
         label="Confirm Password",
         widget=forms.PasswordInput(
             attrs={
-                "class": "w-full px-4 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent",
+                "class": PASSWORD_CSS,
                 "placeholder": "Confirm Password",
+                "autocomplete": "new-password",
             }
         ),
     )
 
     class Meta:
         model = User
-        fields = (
-            "username",
-            "email",
-            "first_name",
-            "last_name",
-            "role",
-            "phone",
-            "password1",
-            "password2",
-        )
+        fields = ("phone", "email", "first_name", "last_name", "password1", "password2")
+
+    def clean_email(self):
+        email = self.cleaned_data["email"].lower()
+        if User.objects.filter(email__iexact=email).exists():
+            raise forms.ValidationError("An account with this email already exists.")
+        return email
+
+    def clean_phone(self):
+        phone = self.cleaned_data.get("phone") or None
+        if phone and User.objects.filter(phone=phone).exists():
+            raise forms.ValidationError("An account with this phone number already exists.")
+        return phone
+
+    def _generate_username(self, email):
+        base = email.split("@")[0]
+        username = base
+        counter = 1
+        while User.objects.filter(username=username).exists():
+            username = f"{base}{counter}"
+            counter += 1
+        return username
 
     def save(self, commit=True):
         user = super().save(commit=False)
+        user.username = self._generate_username(self.cleaned_data["email"])
         user.email = self.cleaned_data["email"]
-        user.role = self.cleaned_data["role"]
-        user.phone = self.cleaned_data.get("phone", "")
-
+        user.role = "parent"
+        user.phone = self.cleaned_data.get("phone") or None
         if commit:
             user.save()
             assign_default_role_to_user(user)
-
         return user
 
 
 class UserProfileForm(forms.ModelForm):
     """User profile form."""
 
+    def clean_phone(self):
+        return self.cleaned_data.get("phone") or None
     class Meta:
         model = User
         fields = (

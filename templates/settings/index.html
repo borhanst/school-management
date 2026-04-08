@@ -33,8 +33,16 @@
         <p class="text-sm text-gray-500 mt-1">Admission No Format, Required Fields</p>
     </a>
     <a href="{% url 'settings:fee' %}" class="bg-white p-6 rounded-lg shadow hover:shadow-md transition">
-        <h3 class="text-lg font-semibold text-gray-800">Fee</h3>
+        <h3 class="text-lg font-semibold text-gray-800">Fee Settings</h3>
         <p class="text-sm text-gray-500 mt-1">Currency, Late Fee, Receipt</p>
+    </a>
+    <a href="{% url 'fees:fee_type_list' %}" class="bg-white p-6 rounded-lg shadow hover:shadow-md transition">
+        <h3 class="text-lg font-semibold text-gray-800">Fee Types</h3>
+        <p class="text-sm text-gray-500 mt-1">Manage fee types and categories</p>
+    </a>
+    <a href="{% url 'fees:fee_structure_list' %}" class="bg-white p-6 rounded-lg shadow hover:shadow-md transition">
+        <h3 class="text-lg font-semibold text-gray-800">Fee Structures</h3>
+        <p class="text-sm text-gray-500 mt-1">Create and manage fee structures</p>
     </a>
     <a href="{% url 'settings:library' %}" class="bg-white p-6 rounded-lg shadow hover:shadow-md transition">
         <h3 class="text-lg font-semibold text-gray-800">Library</h3>

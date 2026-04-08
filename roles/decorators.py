@@ -42,7 +42,7 @@ def permission_required(
                 return HttpResponseForbidden("Authentication required.")
 
             resolved_module = _resolve_module_slug(module_slug, request)
-            if request.user.has_permission(
+            if request.user.is_superuser or request.user.has_permission(
                 resolved_module, permission_codename
             ):
                 return view_func(request, *args, **kwargs)
@@ -74,7 +74,7 @@ def permission_required_any(*permissions, **kwargs):
                     return redirect(login_url)
                 return HttpResponseForbidden("Authentication required.")
 
-            if request.user.has_any_permission(permissions):
+            if request.user.is_superuser or request.user.has_any_permission(permissions):
                 return view_func(request, *args, **kwargs)
 
             denied_message = (
@@ -103,7 +103,7 @@ def permission_required_all(*permissions, **kwargs):
                     return redirect(login_url)
                 return HttpResponseForbidden("Authentication required.")
 
-            if request.user.has_all_permissions(permissions):
+            if request.user.is_superuser or request.user.has_all_permissions(permissions):
                 return view_func(request, *args, **kwargs)
 
             denied_message = (
@@ -131,7 +131,7 @@ def role_required(role_name, **kwargs):
                     return redirect(login_url)
                 return HttpResponseForbidden("Authentication required.")
 
-            if role_name in request.user.get_role_names():
+            if request.user.is_superuser or role_name in request.user.get_role_names():
                 return view_func(request, *args, **kwargs)
 
             denied_message = message or (
@@ -158,7 +158,7 @@ def permission_or_role_required(permission=None, role=None, **kwargs):
                     return redirect(login_url)
                 return HttpResponseForbidden("Authentication required.")
 
-            if permission is None and role is None:
+            if request.user.is_superuser or (permission is None and role is None):
                 return view_func(request, *args, **kwargs)
 
             if permission is not None:
@@ -243,6 +243,8 @@ class PermissionRequiredMixin(AccessMixin):
         return self.permission_codename
 
     def has_permission(self):
+        if self.request.user.is_superuser:
+            return True
         module_slug = self.get_module_slug()
         permission_codename = self.get_permission_codename()
         return self.request.user.has_permission(

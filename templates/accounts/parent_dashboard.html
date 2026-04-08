@@ -1,0 +1,83 @@
+{% extends 'base.html' %}
+
+{% block title %}Parent Dashboard - School Management System{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-6xl space-y-6">
+    <div class="rounded-3xl border border-slate-200 bg-[linear-gradient(135deg,#ffffff_0%,#fef3c7_45%,#f8fafc_100%)] p-6 shadow-sm">
+        <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div>
+                <p class="text-sm font-medium uppercase tracking-[0.2em] text-amber-700">Parent Dashboard</p>
+                <h1 class="text-3xl font-bold text-slate-900">Welcome, {{ user.get_full_name|default:user.username }}</h1>
+                <p class="mt-1 text-sm text-slate-600">Manage your children's information and track their progress</p>
+            </div>
+            <div class="flex flex-wrap gap-3">
+                <a href="{% url 'accounts:parent_profile' %}" class="rounded-xl bg-amber-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-amber-700">
+                    <i class="fas fa-user-edit mr-2"></i>Edit Profile
+                </a>
+                <a href="{% url 'accounts:parent_children' %}" class="rounded-xl bg-white px-4 py-2 text-sm font-medium text-slate-700 border border-slate-200 transition hover:bg-slate-50">
+                    <i class="fas fa-users mr-2"></i>View All Children
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div class="mb-6 border-b border-slate-100 pb-4">
+            <p class="text-xs font-semibold uppercase tracking-[0.2em] text-amber-700">My Children</p>
+            <h2 class="mt-1 text-xl font-semibold text-slate-900">Children Overview</h2>
+        </div>
+
+        {% if children %}
+        <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {% for child in children %}
+            <div class="rounded-2xl border border-slate-200 bg-slate-50 p-5 transition hover:shadow-md">
+                <div class="flex items-center gap-4 mb-4">
+                    <div class="h-12 w-12 rounded-full bg-amber-100 flex items-center justify-center">
+                        <i class="fas fa-user-graduate text-amber-600 text-lg"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-semibold text-slate-900">{{ child.get_full_name }}</h3>
+                        <p class="text-xs text-slate-500">{{ child.admission_no }}</p>
+                    </div>
+                </div>
+                <div class="space-y-2 text-sm text-slate-700">
+                    <div class="flex justify-between">
+                        <span class="text-slate-500">Class:</span>
+                        <span class="font-medium">{{ child.class_level.name }}</span>
+                    </div>
+                    {% if child.section %}
+                    <div class="flex justify-between">
+                        <span class="text-slate-500">Section:</span>
+                        <span class="font-medium">{{ child.section.name }}</span>
+                    </div>
+                    {% endif %}
+                    <div class="flex justify-between">
+                        <span class="text-slate-500">Roll No:</span>
+                        <span class="font-medium">{{ child.roll_number|default:"N/A" }}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-slate-500">Academic Year:</span>
+                        <span class="font-medium">{{ child.academic_year.name }}</span>
+                    </div>
+                </div>
+                <div class="mt-4 pt-4 border-t border-slate-200">
+                    <a href="{% url 'students:detail' child.pk %}" class="text-sm font-medium text-amber-600 hover:text-amber-700">
+                        View Details <i class="fas fa-arrow-right ml-1"></i>
+                    </a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-center py-12">
+            <div class="h-16 w-16 mx-auto mb-4 rounded-full bg-slate-100 flex items-center justify-center">
+                <i class="fas fa-users text-slate-400 text-2xl"></i>
+            </div>
+            <h3 class="text-lg font-medium text-slate-900 mb-2">No Children Linked</h3>
+            <p class="text-slate-500 mb-4">Contact the school administration to link your children to your account.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

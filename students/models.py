@@ -188,6 +188,17 @@ class Student(models.Model):
     )
     aadhar_no = models.CharField(max_length=20, blank=True)
 
+    # Parent details
+    father_name = models.CharField(max_length=200, blank=True)
+    father_phone = models.CharField(max_length=20, blank=True)
+    father_occupation = models.CharField(max_length=100, blank=True)
+    mother_name = models.CharField(max_length=200, blank=True)
+    mother_phone = models.CharField(max_length=20, blank=True)
+    mother_occupation = models.CharField(max_length=100, blank=True)
+    guardian_name = models.CharField(max_length=200, blank=True)
+    guardian_phone = models.CharField(max_length=20, blank=True)
+    guardian_relation = models.CharField(max_length=50, blank=True)
+
     # Academic details
     class_level = models.ForeignKey(
         ClassLevel, on_delete=models.CASCADE, related_name="students"

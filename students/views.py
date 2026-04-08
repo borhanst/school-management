@@ -3,8 +3,7 @@ import string
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.db import IntegrityError
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.db.models import Q, Sum
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -21,7 +20,7 @@ from roles.decorators import (
 )
 from roles.services import assign_default_role_to_user
 
-from .forms import StudentCreateForm
+from .forms import StudentCreateForm, StudentUpdateForm
 from .models import (
     AcademicYear,
     ClassLevel,
@@ -129,9 +128,7 @@ def student_create(request):
                         gender=data["gender"],
                         date_of_birth=data["date_of_birth"],
                     )
-                    assign_default_role_to_user(
-                        user, assigned_by=request.user
-                    )
+                    assign_default_role_to_user(user, assigned_by=request.user)
 
                     student = Student.objects.create(
                         user=user,
@@ -149,53 +146,33 @@ def student_create(request):
                         house=data["house"],
                         previous_school=data["previous_school"],
                         tc_no=data["tc_no"],
+                        father_name=data.get("father_name", ""),
+                        father_phone=data.get("father_phone", ""),
+                        father_occupation=data.get("father_occupation", ""),
+                        mother_name=data.get("mother_name", ""),
+                        mother_phone=data.get("mother_phone", ""),
+                        mother_occupation=data.get("mother_occupation", ""),
+                        guardian_name=data.get("guardian_name", ""),
+                        guardian_phone=data.get("guardian_phone", ""),
+                        guardian_relation=data.get("guardian_relation", ""),
                     )
 
-                    if (
-                        request.user.role == "parent"
-                        and hasattr(request.user, "parent_profile")
+                    if request.user.role == "parent" and hasattr(
+                        request.user, "parent_profile"
                     ):
                         request.user.parent_profile.children.add(student)
-                    elif data.get("has_parent_data"):
-                        parent_user = User.objects.create_user(
-                            username=data["parent_username"],
-                            email=data["parent_email"],
-                            password=data["parent_password"],
-                            role="parent",
-                            first_name=data["parent_first_name"],
-                            last_name=data["parent_last_name"],
-                            phone=data["parent_phone"],
-                        )
-                        assign_default_role_to_user(
-                            parent_user, assigned_by=request.user
-                        )
-
-                        parent_profile = parent_user.parent_profile
-                        parent_profile.occupation = data["parent_occupation"]
-                        parent_profile.income = data["parent_income"] or 0
-                        parent_profile.relation = data["parent_relation"]
-                        parent_profile.emergency_contact = data[
-                            "parent_emergency_contact"
-                        ]
-                        parent_profile.save()
-                        parent_profile.children.add(student)
 
                     created_fee_invoices = create_admission_fee_invoices(
                         student
                     )
             except IntegrityError:
-                if data.get("parent_username") and User.objects.filter(
-                    username__iexact=data["parent_username"]
-                ).exists():
-                    form.add_error(
-                        "parent_username",
-                        "This parent username is already taken. Please choose another one.",
-                    )
-                else:
-                    form.add_error(
-                        "username",
-                        "This username is already taken. Please choose another one.",
-                    )
+                form.add_error(
+                    "username",
+                    "This username is already taken. Please choose another one.",
+                )
+                messages.error(
+                    request, "Please fix the errors below and try again."
+                )
                 messages.error(
                     request, "Please fix the errors below and try again."
                 )
@@ -224,7 +201,9 @@ def student_create(request):
                     fee_parts.append(
                         f"{created_fee_invoices['monthly']} monthly fee invoice(s)"
                     )
-                success_message += " " + " and ".join(fee_parts) + " were created."
+                success_message += (
+                    " " + " and ".join(fee_parts) + " were created."
+                )
             messages.success(request, success_message)
             return redirect("students:list")
 
@@ -292,11 +271,15 @@ def student_detail(request, pk):
         or 0
     )
 
-    upcoming_exams = ExamSchedule.objects.filter(
-        class_level=student.class_level,
-        academic_year=student.academic_year,
-        date__gte=today,
-    ).select_related("subject", "exam_type").order_by("date", "start_time")[:5]
+    upcoming_exams = (
+        ExamSchedule.objects.filter(
+            class_level=student.class_level,
+            academic_year=student.academic_year,
+            date__gte=today,
+        )
+        .select_related("subject", "exam_type")
+        .order_by("date", "start_time")[:5]
+    )
 
     parent_profiles = student.parents.select_related("user")
     today_timeline = []
@@ -344,40 +327,87 @@ def student_detail(request, pk):
 def student_update(request, pk):
     """Update student."""
     student = get_object_or_404(Student, pk=pk)
+    form = StudentUpdateForm(request.POST or None)
 
     if request.method == "POST":
-        # Update user
-        student.user.first_name = request.POST.get("first_name")
-        student.user.last_name = request.POST.get("last_name")
-        student.user.email = request.POST.get("email")
-        student.user.phone = request.POST.get("phone")
-        student.user.gender = request.POST.get("gender")
-        student.user.save()
+        if form.is_valid():
+            data = form.cleaned_data
 
-        # Update student
-        student.admission_date = request.POST.get("admission_date")
-        student.date_of_birth = request.POST.get("date_of_birth")
-        student.gender = request.POST.get("gender")
-        student.roll_number = request.POST.get("roll_number")
-        student.class_level_id = request.POST.get("class_level")
-        student.section_id = request.POST.get("section")
-        student.academic_year_id = request.POST.get("academic_year")
-        student.house = request.POST.get("house")
-        student.blood_group = request.POST.get("blood_group")
-        student.religion = request.POST.get("religion")
-        student.aadhar_no = request.POST.get("aadhar_no")
-        student.previous_school = request.POST.get("previous_school")
-        student.tc_no = request.POST.get("tc_no")
-        student.save()
+            try:
+                with transaction.atomic():
+                    # Update user
+                    student.user.first_name = data["first_name"]
+                    student.user.last_name = data["last_name"]
+                    student.user.email = data["email"]
+                    student.user.phone = data["phone"]
+                    student.user.gender = data["gender"]
+                    student.user.save()
 
-        messages.success(request, "Student updated successfully!")
-        return redirect("students:list")
+                    # Update student
+                    student.admission_date = data["admission_date"]
+                    student.date_of_birth = data["date_of_birth"]
+                    student.gender = data["gender"]
+                    student.roll_number = data["roll_number"]
+                    student.class_level = data["class_level"]
+                    student.section = data["section"]
+                    student.academic_year = data["academic_year"]
+                    student.house = data["house"]
+                    student.blood_group = data["blood_group"]
+                    student.religion = data["religion"]
+                    student.aadhar_no = data["aadhar_no"]
+                    student.previous_school = data["previous_school"]
+                    student.tc_no = data["tc_no"]
+                    student.tc_date = data.get("tc_date")
+                    student.father_name = data.get("father_name", "")
+                    student.father_phone = data.get("father_phone", "")
+                    student.father_occupation = data.get(
+                        "father_occupation", ""
+                    )
+                    student.mother_name = data.get("mother_name", "")
+                    student.mother_phone = data.get("mother_phone", "")
+                    student.mother_occupation = data.get(
+                        "mother_occupation", ""
+                    )
+                    student.guardian_name = data.get("guardian_name", "")
+                    student.guardian_phone = data.get("guardian_phone", "")
+                    student.guardian_relation = data.get(
+                        "guardian_relation", ""
+                    )
+                    student.save()
+            except IntegrityError:
+                form.add_error(
+                    None,
+                    "An error occurred while updating the student. Please try again.",
+                )
+                messages.error(
+                    request, "Please fix the errors below and try again."
+                )
+                context = {
+                    "student": student,
+                    "form": form,
+                    "academic_years": AcademicYear.objects.filter(
+                        is_active=True
+                    ),
+                    "classes": ClassLevel.objects.filter(is_active=True),
+                    "sections": Section.objects.filter(
+                        is_active=True
+                    ).select_related("class_level"),
+                }
+                return render(request, "students/form.html", context)
+
+            messages.success(request, "Student updated successfully!")
+            return redirect("students:list")
+
+        messages.error(request, "Please fix the errors below and try again.")
 
     context = {
         "student": student,
+        "form": form,
         "academic_years": AcademicYear.objects.filter(is_active=True),
         "classes": ClassLevel.objects.filter(is_active=True),
-        "sections": Section.objects.filter(is_active=True),
+        "sections": Section.objects.filter(is_active=True).select_related(
+            "class_level"
+        ),
     }
     return render(request, "students/form.html", context)
 

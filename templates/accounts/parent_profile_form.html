@@ -1,0 +1,102 @@
+{% extends 'base.html' %}
+
+{% block title %}Edit Parent Profile - School Management System{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-4xl space-y-6">
+    <div class="rounded-3xl border border-slate-200 bg-[linear-gradient(135deg,#ffffff_0%,#fef3c7_45%,#f8fafc_100%)] p-6 shadow-sm">
+        <div class="flex items-center gap-4">
+            <a href="{% url 'accounts:parent_dashboard' %}" class="text-slate-500 hover:text-slate-700">
+                <i class="fas fa-arrow-left"></i>
+            </a>
+            <div>
+                <p class="text-sm font-medium uppercase tracking-[0.2em] text-amber-700">Parent Profile</p>
+                <h1 class="text-2xl font-bold text-slate-900">Edit Profile</h1>
+            </div>
+        </div>
+    </div>
+
+    <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+        <form method="POST" enctype="multipart/form-data" class="space-y-6">
+            {% csrf_token %}
+
+            {% if user_form.non_field_errors or profile_form.non_field_errors %}
+            <div class="rounded-2xl border border-red-200 bg-red-50 p-4">
+                {% for error in user_form.non_field_errors %}
+                <p class="text-sm text-red-700">{{ error }}</p>
+                {% endfor %}
+                {% for error in profile_form.non_field_errors %}
+                <p class="text-sm text-red-700">{{ error }}</p>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <div>
+                <h3 class="text-lg font-semibold text-slate-900 mb-4">Account Information</h3>
+                <div class="grid gap-4 md:grid-cols-2">
+                    <div>
+                        <label class="mb-1 block text-sm font-medium text-slate-700">First Name</label>
+                        {{ user_form.first_name }}
+                        {% if user_form.first_name.errors %}<p class="mt-1 text-sm text-red-600">{{ user_form.first_name.errors.0 }}</p>{% endif %}
+                    </div>
+                    <div>
+                        <label class="mb-1 block text-sm font-medium text-slate-700">Last Name</label>
+                        {{ user_form.last_name }}
+                        {% if user_form.last_name.errors %}<p class="mt-1 text-sm text-red-600">{{ user_form.last_name.errors.0 }}</p>{% endif %}
+                    </div>
+                    <div>
+                        <label class="mb-1 block text-sm font-medium text-slate-700">Email</label>
+                        {{ user_form.email }}
+                        {% if user_form.email.errors %}<p class="mt-1 text-sm text-red-600">{{ user_form.email.errors.0 }}</p>{% endif %}
+                    </div>
+                    <div>
+                        <label class="mb-1 block text-sm font-medium text-slate-700">Phone</label>
+                        {{ user_form.phone }}
+                        {% if user_form.phone.errors %}<p class="mt-1 text-sm text-red-600">{{ user_form.phone.errors.0 }}</p>{% endif %}
+                    </div>
+                    <div>
+                        <label class="mb-1 block text-sm font-medium text-slate-700">Address</label>
+                        {{ user_form.address }}
+                        {% if user_form.address.errors %}<p class="mt-1 text-sm text-red-600">{{ user_form.address.errors.0 }}</p>{% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="border-t border-slate-200 pt-6">
+                <h3 class="text-lg font-semibold text-slate-900 mb-4">Parent Details</h3>
+                <div class="grid gap-4 md:grid-cols-2">
+                    <div>
+                        <label class="mb-1 block text-sm font-medium text-slate-700">Occupation</label>
+                        {{ profile_form.occupation }}
+                        {% if profile_form.occupation.errors %}<p class="mt-1 text-sm text-red-600">{{ profile_form.occupation.errors.0 }}</p>{% endif %}
+                    </div>
+                    <div>
+                        <label class="mb-1 block text-sm font-medium text-slate-700">Income</label>
+                        {{ profile_form.income }}
+                        {% if profile_form.income.errors %}<p class="mt-1 text-sm text-red-600">{{ profile_form.income.errors.0 }}</p>{% endif %}
+                    </div>
+                    <div>
+                        <label class="mb-1 block text-sm font-medium text-slate-700">Relation to Student</label>
+                        {{ profile_form.relation }}
+                        {% if profile_form.relation.errors %}<p class="mt-1 text-sm text-red-600">{{ profile_form.relation.errors.0 }}</p>{% endif %}
+                    </div>
+                    <div>
+                        <label class="mb-1 block text-sm font-medium text-slate-700">Emergency Contact</label>
+                        {{ profile_form.emergency_contact }}
+                        {% if profile_form.emergency_contact.errors %}<p class="mt-1 text-sm text-red-600">{{ profile_form.emergency_contact.errors.0 }}</p>{% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-3 border-t border-slate-100 pt-4">
+                <a href="{% url 'accounts:parent_dashboard' %}" class="rounded-xl bg-slate-100 px-5 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-200">
+                    Cancel
+                </a>
+                <button type="submit" class="rounded-xl bg-amber-600 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-amber-700">
+                    Save Changes
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

@@ -71,4 +71,8 @@ urlpatterns = [
         views.TeacherUpdateView.as_view(),
         name="teacher_edit",
     ),
+    # Parent
+    path("parent/dashboard/", views.parent_dashboard, name="parent_dashboard"),
+    path("parent/profile/", views.parent_profile_update, name="parent_profile"),
+    path("parent/children/", views.parent_children_list, name="parent_children"),
 ]
