@@ -19,6 +19,8 @@ urlpatterns = [
         views.schedule_delete,
         name="schedule_delete",
     ),
+    path("schedule/<int:pk>/toggle-publish/", views.schedule_toggle_publish, name="schedule_toggle_publish"),
     path("report-card/", views.report_card, name="report_card"),
     path("my-exams/", views.my_exams, name="my_exams"),
+    path("exam/<int:pk>/", views.exam_detail, name="exam_detail"),
 ]

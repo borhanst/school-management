@@ -1,8 +1,10 @@
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
+from django.views.decorators.http import require_POST
 
+from students.models import AcademicYear
 from .models import (
     get_school_info, get_academic_setting, get_grading_setting,
     get_attendance_setting, get_examination_setting, get_promotion_setting,
@@ -15,12 +17,78 @@ from .forms import (
     AttendanceSettingForm, ExaminationSettingForm, ExamTypeConfigForm,
     PromotionSettingForm, StudentSettingForm, FeeSettingForm,
     LibrarySettingForm, TransportSettingForm, ReportCardSettingForm,
+    AcademicYearForm,
 )
 
 
 @login_required
 def settings_index(request):
     return render(request, "settings/index.html")
+
+
+# Academic Year Management Views
+@login_required
+def academic_year_list(request):
+    """List all academic years."""
+    years = AcademicYear.objects.all().order_by("-start_date")
+    context = {"years": years}
+    return render(request, "settings/academic_year_list.html", context)
+
+
+@login_required
+def academic_year_create(request):
+    """Create a new academic year."""
+    if request.method == "POST":
+        form = AcademicYearForm(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Academic year created successfully.")
+            return redirect("settings:academic-year-list")
+    else:
+        form = AcademicYearForm()
+    return render(request, "settings/academic_year_form.html", {"form": form, "title": "Create Academic Year"})
+
+
+@login_required
+def academic_year_edit(request, pk):
+    """Edit an academic year."""
+    year = get_object_or_404(AcademicYear, pk=pk)
+    if request.method == "POST":
+        form = AcademicYearForm(request.POST, instance=year)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Academic year updated successfully.")
+            return redirect("settings:academic-year-list")
+    else:
+        form = AcademicYearForm(instance=year)
+    return render(request, "settings/academic_year_form.html", {"form": form, "title": "Edit Academic Year", "year": year})
+
+
+@login_required
+@require_POST
+def academic_year_delete(request, pk):
+    """Delete an academic year."""
+    year = get_object_or_404(AcademicYear, pk=pk)
+    
+    # Prevent deleting if it's the current year
+    if year.is_current:
+        messages.error(request, "Cannot delete the current academic year.")
+        return redirect("settings:academic-year-list")
+    
+    # Check if there are related records
+    if (year.students.exists() or 
+        year.question_banks.exists() or 
+        year.fee_structures.exists() or
+        year.sections.exists()):
+        messages.error(
+            request, 
+            f"Cannot delete '{year.name}' because it has related records (students, question banks, fee structures, or sections)."
+        )
+        return redirect("settings:academic-year-list")
+    
+    year.delete()
+    messages.success(request, f"Academic year '{year.name}' deleted successfully.")
+    return redirect("settings:academic-year-list")
 
 
 @login_required

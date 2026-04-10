@@ -300,18 +300,12 @@ class QuestionBankViewTests(TestCase, PermissionTestMixin):
         response = self.client.get(reverse("questions:bank_list"))
         self.assertEqual(response.status_code, 302)
 
-    def test_bank_list_with_data(self):
-        """Test bank list view displays question banks."""
+    def test_bank_list_redirects_to_papers(self):
+        """Test bank list redirects to papers list."""
         self.client.force_login(self.user)
-        bank = QuestionBank.objects.create(
-            name="Test Bank",
-            class_level=self.class_level,
-            subject=self.subject,
-            academic_year=self.academic_year,
-        )
         response = self.client.get(reverse("questions:bank_list"))
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Test Bank")
+        self.assertEqual(response.status_code, 302)
+        self.assertRedirects(response, reverse("questions:paper-list-all"), fetch_redirect_response=False)
 
 
 class AIGenerationViewTests(TestCase, PermissionTestMixin):
@@ -346,8 +340,8 @@ class AIGenerationViewTests(TestCase, PermissionTestMixin):
         """Test that AI generate form displays correctly."""
         self.client.force_login(self.user)
         response = self.client.get(reverse("questions:ai_generate"))
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Upload Textbook Page Image")
+        self.assertEqual(response.status_code, 302)
+        self.assertRedirects(response, reverse("questions:paper-list-all"), fetch_redirect_response=False)
 
 
 class QuestionPaperExportTests(TestCase, PermissionTestMixin):
@@ -382,24 +376,17 @@ class QuestionPaperExportTests(TestCase, PermissionTestMixin):
     def test_export_question_paper_requires_login(self):
         """Test that export requires authentication."""
         response = self.client.get(
-            reverse("questions:export_paper", args=[self.bank.pk])
+            reverse("questions:export_paper", args=[1])
         )
         self.assertEqual(response.status_code, 302)
 
-    def test_export_question_paper_displays_questions(self):
-        """Test that export displays questions."""
+    def test_export_question_paper_redirects_to_paper(self):
+        """Test that export redirects to paper detail."""
         self.client.force_login(self.user)
-        Question.objects.create(
-            question_bank=self.bank,
-            question_text="What is force?",
-            question_type="mcq",
-            marks=1,
-        )
         response = self.client.get(
-            reverse("questions:export_paper", args=[self.bank.pk])
+            reverse("questions:export_paper", args=[1])
         )
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "What is force?")
+        self.assertEqual(response.status_code, 302)
 
 
 class AIGenerationServiceTests(TestCase):

@@ -111,6 +111,22 @@
                 <label for="room_no" class="block text-sm font-medium text-gray-700 mb-1">Room No</label>
                 <input type="text" name="room_no" id="room_no" value="{{ schedule.room_no|default:'' }}" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent" placeholder="Enter room number">
             </div>
+
+            <!-- Question Paper -->
+            <div>
+                <label for="question_paper" class="block text-sm font-medium text-gray-700 mb-1">Question Paper (Optional)</label>
+                <select name="question_paper" id="question_paper" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                    <option value="">-- Select Question Paper --</option>
+                    {% for paper in question_papers %}
+                    <option value="{{ paper.id }}" {% if schedule.question_paper_id == paper.id %}selected{% endif %}>
+                        {{ paper.name }} ({{ paper.get_paper_type_display }}) - {{ paper.question_bank.class_level }} {{ paper.question_bank.subject }}
+                    </option>
+                    {% endfor %}
+                </select>
+                <p class="mt-1 text-sm text-gray-500">
+                    Create question papers in the Questions app first.
+                </p>
+            </div>
         </div>
 
         <!-- Instructions -->

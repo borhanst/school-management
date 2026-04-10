@@ -180,27 +180,27 @@
     </div>
     {% endif %}
 
-    <!-- Questions -->
+    <!-- Question Papers -->
     {% if user|has_any_permission:'questions.view,questions.add,questions.ai_generate' %}
     <div x-data="{}">
         <button @click="openMenu = openMenu === 'questions' ? null : 'questions'"
                 class="w-full flex items-center px-4 py-2.5 text-gray-700 rounded-lg hover:bg-gray-100"
                 :class="isActive('/questions/') ? 'bg-primary-50 text-primary-600' : ''">
-            <i class="fas fa-question-circle w-6"></i>
-            <span class="font-medium flex-1 text-left">Questions</span>
+            <i class="fas fa-file-alt w-6"></i>
+            <span class="font-medium flex-1 text-left">Question Papers</span>
             <i class="fas fa-chevron-down text-xs transition-transform" :class="openMenu === 'questions' ? 'rotate-180' : ''"></i>
         </button>
         <div x-show="openMenu === 'questions'" x-collapse class="ml-4 mt-1 space-y-1">
             {% if user|has_permission:'questions.view' %}
-            <a href="{% url 'questions:bank_list' %}" class="flex items-center px-4 py-2 text-sm text-gray-600 rounded-lg hover:bg-gray-100"
-               :class="window.location.pathname === '/questions/' ? 'bg-gray-100' : ''">
-                <i class="fas fa-list w-5"></i> Question Banks
+            <a href="{% url 'questions:paper-list-all' %}" class="flex items-center px-4 py-2 text-sm text-gray-600 rounded-lg hover:bg-gray-100"
+               :class="window.location.pathname === '/questions/papers/' ? 'bg-gray-100' : ''">
+                <i class="fas fa-list w-5"></i> All Papers
             </a>
             {% endif %}
-            {% if user|has_permission:'questions.ai_generate' %}
-            <a href="{% url 'questions:ai_generate' %}" class="flex items-center px-4 py-2 text-sm text-gray-600 rounded-lg hover:bg-gray-100"
-               :class="isActive('/questions/ai-generate') ? 'bg-gray-100' : ''">
-                <i class="fas fa-robot w-5"></i> AI Generate
+            {% if user|has_permission:'questions.add' %}
+            <a href="{% url 'questions:paper-create-standalone' %}" class="flex items-center px-4 py-2 text-sm text-gray-600 rounded-lg hover:bg-gray-100"
+               :class="isActive('/questions/papers/create') ? 'bg-gray-100' : ''">
+                <i class="fas fa-plus w-5"></i> Create Paper
             </a>
             {% endif %}
         </div>

@@ -1,4 +1,6 @@
 from django.test import TestCase
+from django.contrib.auth import get_user_model
+from django.urls import reverse
 from .models import (
     SchoolInfo, AcademicSetting, GradingSetting, GradeScale,
     AttendanceSetting, ExaminationSetting, ExamTypeConfig,
@@ -6,6 +8,109 @@ from .models import (
     LibrarySetting, TransportSetting, ReportCardSetting,
     get_school_info, get_academic_setting, get_grading_setting,
 )
+from students.models import AcademicYear
+
+User = get_user_model()
+
+
+class AcademicYearViewTests(TestCase):
+    """Tests for academic year management views."""
+    
+    def setUp(self):
+        """Create test user."""
+        self.user = User.objects.create_user(
+            username='testuser',
+            password='testpass123',
+            is_staff=True
+        )
+        self.client.force_login(self.user)
+    
+    def test_academic_year_list_view(self):
+        """Test academic year list view loads."""
+        response = self.client.get(reverse('settings:academic-year-list'))
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'settings/academic_year_list.html')
+    
+    def test_academic_year_create_view_get(self):
+        """Test academic year create form loads."""
+        response = self.client.get(reverse('settings:academic-year-create'))
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'settings/academic_year_form.html')
+    
+    def test_academic_year_create_view_post(self):
+        """Test creating an academic year."""
+        response = self.client.post(reverse('settings:academic-year-create'), {
+            'name': '2024-2025',
+            'start_date': '2024-01-01',
+            'end_date': '2024-12-31',
+            'is_current': True,
+            'is_active': True,
+        })
+        self.assertEqual(AcademicYear.objects.count(), 1)
+        year = AcademicYear.objects.first()
+        self.assertEqual(year.name, '2024-2025')
+        self.assertTrue(year.is_current)
+        self.assertRedirects(response, reverse('settings:academic-year-list'))
+    
+    def test_academic_year_edit_view(self):
+        """Test editing an academic year."""
+        year = AcademicYear.objects.create(
+            name='2023-2024',
+            start_date='2023-01-01',
+            end_date='2023-12-31'
+        )
+        response = self.client.post(reverse('settings:academic-year-edit', args=[year.pk]), {
+            'name': '2023-2024 Updated',
+            'start_date': '2023-01-01',
+            'end_date': '2023-12-31',
+            'is_current': False,
+            'is_active': True,
+        })
+        year.refresh_from_db()
+        self.assertEqual(year.name, '2023-2024 Updated')
+        self.assertRedirects(response, reverse('settings:academic-year-list'))
+    
+    def test_academic_year_delete_view(self):
+        """Test deleting an academic year."""
+        year = AcademicYear.objects.create(
+            name='2022-2023',
+            start_date='2022-01-01',
+            end_date='2022-12-31'
+        )
+        response = self.client.post(reverse('settings:academic-year-delete', args=[year.pk]))
+        self.assertFalse(AcademicYear.objects.filter(pk=year.pk).exists())
+        self.assertRedirects(response, reverse('settings:academic-year-list'))
+    
+    def test_cannot_delete_current_year(self):
+        """Test that current academic year cannot be deleted."""
+        year = AcademicYear.objects.create(
+            name='2024-2025',
+            start_date='2024-01-01',
+            end_date='2024-12-31',
+            is_current=True
+        )
+        response = self.client.post(reverse('settings:academic-year-delete', args=[year.pk]))
+        self.assertTrue(AcademicYear.objects.filter(pk=year.pk).exists())
+        messages = list(response.wsgi_request._messages)
+        self.assertEqual(str(messages[0]), "Cannot delete the current academic year.")
+    
+    def test_only_one_current_year(self):
+        """Test that only one academic year can be current."""
+        year1 = AcademicYear.objects.create(
+            name='2023-2024',
+            start_date='2023-01-01',
+            end_date='2023-12-31',
+            is_current=True
+        )
+        year2 = AcademicYear.objects.create(
+            name='2024-2025',
+            start_date='2024-01-01',
+            end_date='2024-12-31',
+            is_current=True
+        )
+        year1.refresh_from_db()
+        self.assertFalse(year1.is_current)
+        self.assertTrue(year2.is_current)
 
 
 class SingletonHelperTests(TestCase):

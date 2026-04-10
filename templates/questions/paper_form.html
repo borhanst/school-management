@@ -1,0 +1,175 @@
+{% extends 'base.html' %}
+{% load permission_tags %}
+
+{% block title %}{% if bank %}Create Question Paper from {{ bank.name }}{% else %}Create Question Paper{% endif %}{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+    {% if bank %}
+    <a href="{% url 'questions:paper-list' bank.pk %}" class="text-primary-600 hover:text-primary-700">
+        <i class="fas fa-arrow-left mr-2"></i>Back to Question Papers
+    </a>
+    {% else %}
+    <a href="{% url 'questions:paper-list-all' %}" class="text-primary-600 hover:text-primary-700">
+        <i class="fas fa-arrow-left mr-2"></i>Back to Question Papers
+    </a>
+    {% endif %}
+</div>
+
+<div class="max-w-3xl mx-auto">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100">
+        <div class="p-6 border-b border-gray-100 bg-gradient-to-r from-purple-50 to-blue-50">
+            <div class="flex items-center">
+                <div class="p-3 bg-purple-100 rounded-lg mr-4">
+                    <i class="fas fa-file-alt text-2xl text-purple-600"></i>
+                </div>
+                <div>
+                    <h1 class="text-2xl font-bold text-gray-800">Create Question Paper</h1>
+                    {% if bank %}
+                    <p class="text-gray-600 mt-1">{{ bank.name }}</p>
+                    {% else %}
+                    <p class="text-gray-600 mt-1">Create a standalone question paper</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <form method="post" class="p-6 space-y-6">
+            {% csrf_token %}
+
+            <!-- Paper Name -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">
+                    Paper Name <span class="text-red-500">*</span>
+                </label>
+                <input type="text" name="name" required
+                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                       placeholder="e.g., Chapter 5 - Midterm Exam">
+            </div>
+
+            {% if not bank %}
+            <!-- Class and Subject (only for standalone) -->
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                        Class <span class="text-red-500">*</span>
+                    </label>
+                    <select name="class_level" id="id_class_level" required
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
+                        <option value="">Select Class</option>
+                        {% for class in classes %}
+                        <option value="{{ class.pk }}">{{ class.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                        Subject <span class="text-red-500">*</span>
+                    </label>
+                    <select name="subject" id="id_subject" required
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
+                        <option value="">Select Subject</option>
+                        {% for subject in subjects %}
+                        <option value="{{ subject.pk }}">{{ subject.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Paper Type -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Paper Type</label>
+                <select name="paper_type"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
+                    <option value="test">Test</option>
+                    <option value="quiz">Quiz</option>
+                    <option value="midterm">Midterm Exam</option>
+                    <option value="final">Final Exam</option>
+                    <option value="practice">Practice Paper</option>
+                    <option value="mock">Mock Exam</option>
+                </select>
+            </div>
+
+            <!-- Difficulty -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Difficulty</label>
+                <select name="difficulty"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
+                    <option value="easy">Easy</option>
+                    <option value="medium" selected>Medium</option>
+                    <option value="hard">Hard</option>
+                    <option value="mixed">Mixed</option>
+                </select>
+            </div>
+
+            <!-- Duration -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Duration (minutes)</label>
+                <input type="number" name="duration_minutes" value="60" min="10" max="360"
+                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
+            </div>
+
+            <!-- Instructions -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Instructions (Optional)</label>
+                <textarea name="instructions" rows="4"
+                          class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                          placeholder="General instructions for students..."></textarea>
+            </div>
+
+            <!-- Submit -->
+            <div class="flex justify-end gap-3 pt-4">
+                {% if bank %}
+                <a href="{% url 'questions:paper-list' bank.pk %}"
+                   class="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors">
+                    Cancel
+                </a>
+                {% else %}
+                <a href="{% url 'questions:paper-list-all' %}"
+                   class="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors">
+                    Cancel
+                </a>
+                {% endif %}
+                <button type="submit"
+                        class="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors">
+                    <i class="fas fa-plus mr-2"></i>Create Question Paper
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% if not bank %}
+<script>
+// Subject filtering based on class (for standalone paper creation)
+document.addEventListener('DOMContentLoaded', function() {
+    const classSelect = document.getElementById('id_class_level');
+    const subjectSelect = document.getElementById('id_subject');
+    
+    if (classSelect && subjectSelect) {
+        classSelect.addEventListener('change', function() {
+            const classId = this.value;
+            if (classId) {
+                fetch(`/questions/ajax/get-subjects/?class_id=${classId}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        subjectSelect.innerHTML = '<option value="">Select Subject</option>';
+                        data.subjects.forEach(subject => {
+                            const option = document.createElement('option');
+                            option.value = subject.id;
+                            option.textContent = subject.name;
+                            subjectSelect.appendChild(option);
+                        });
+                    })
+                    .catch(error => console.error('Error fetching subjects:', error));
+            } else {
+                subjectSelect.innerHTML = '<option value="">Select Subject</option>';
+            }
+        });
+    }
+});
+</script>
+{% endif %}
+{% endblock %}

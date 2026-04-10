@@ -7,7 +7,9 @@ requires-python = ">=3.11"
 dependencies = [
     "django>=5.2.12",
     "django-select2>=8.4.8",
+    "google-genai>=1.71.0",
     "google-generativeai>=0.8.0",
+    "groq>=0.30.0",
     "pillow>=10.0.0",
     "python-dotenv>=1.2.2",
 ]

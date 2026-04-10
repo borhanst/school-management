@@ -3,8 +3,10 @@ from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from decimal import Decimal, ROUND_HALF_UP
+from datetime import date, timedelta
 
 from academics.models import Subject
+from questions.models import QuestionPaper
 from roles.decorators import permission_required, permission_required_any
 from students.models import AcademicYear, ClassLevel, Section, Student
 
@@ -489,8 +491,37 @@ def get_students_for_grade(request):
 @permission_required("examinations", "view")
 def schedule(request):
     """Exam schedule list and management."""
+    from django.utils import timezone
+    
+    # Redirect students to their own exams
     if request.user.role == "student":
         return redirect("examinations:my_exams")
+    
+    # For parents: get child's info and filter schedules
+    if request.user.role == "parent":
+        from accounts.models import ParentProfile
+        try:
+            parent_profile = request.user.parent_profile
+            # Get the first child (or you could show all children)
+            child_student = parent_profile.children.first()
+        except Exception:
+            parent_profile = None
+            child_student = None
+        
+        schedules = ExamSchedule.objects.all().select_related(
+            "exam_type", "subject", "class_level"
+        ).order_by("date", "start_time")
+        
+        # Filter by child's class if parent has a child
+        if child_student and child_student.class_level:
+            schedules = schedules.filter(class_level=child_student.class_level)
+        
+        context = {
+            "schedules": schedules,
+            "child_student": child_student,
+            "today": timezone.now().date(),
+        }
+        return render(request, "examinations/schedule.html", context)
 
     try:
         academic_year = AcademicYear.objects.get(is_current=True)
@@ -503,10 +534,8 @@ def schedule(request):
         exam_types = ExamType.objects.filter(
             academic_year=academic_year, is_active=True
         )
-        # Get class levels through sections for the academic year
-        class_levels = ClassLevel.objects.filter(
-            sections__academic_year=academic_year, sections__is_active=True
-        ).distinct()
+        # Get all class levels
+        class_levels = ClassLevel.objects.filter().order_by("numeric_name")
 
         context.update(
             {
@@ -518,7 +547,7 @@ def schedule(request):
         # Get schedules with filters
         schedules = ExamSchedule.objects.filter(
             academic_year=academic_year
-        ).select_related("exam_type", "subject", "class_level")
+        ).select_related("exam_type", "subject", "class_level", "question_paper")
 
         exam_type_id = request.GET.get("exam_type")
         class_level_id = request.GET.get("class_level")
@@ -553,6 +582,7 @@ def schedule_add(request):
         marks = request.POST.get("marks")
         room_no = request.POST.get("room_no", "")
         instructions = request.POST.get("instructions", "")
+        question_paper_id = request.POST.get("question_paper") or None
 
         if not all(
             [
@@ -571,6 +601,9 @@ def schedule_add(request):
         exam_type = get_object_or_404(ExamType, id=exam_type_id)
         subject = get_object_or_404(Subject, id=subject_id)
         class_level = get_object_or_404(ClassLevel, id=class_level_id)
+        question_paper = None
+        if question_paper_id:
+            question_paper = get_object_or_404(QuestionPaper, id=question_paper_id)
 
         # Check for duplicate
         if ExamSchedule.objects.filter(
@@ -596,6 +629,7 @@ def schedule_add(request):
             marks=marks,
             room_no=room_no,
             instructions=instructions,
+            question_paper=question_paper,
         )
 
         messages.success(request, "Exam schedule created successfully.")
@@ -605,15 +639,19 @@ def schedule_add(request):
     exam_types = ExamType.objects.filter(
         academic_year=academic_year, is_active=True
     )
-    # Get class levels through sections for the academic year
-    class_levels = ClassLevel.objects.filter(
-        sections__academic_year=academic_year, sections__is_active=True
-    ).distinct()
+    # Get all active class levels
+    class_levels = ClassLevel.objects.filter().order_by("numeric_name")
+
+    # Get question papers for the academic year
+    question_papers = QuestionPaper.objects.filter(
+        academic_year=academic_year
+    ).select_related("question_bank").order_by("-created_at")
 
     context = {
         "exam_types": exam_types,
         "class_levels": class_levels,
         "academic_year": academic_year,
+        "question_papers": question_papers,
     }
 
     return render(request, "examinations/schedule_form.html", context)
@@ -640,6 +678,7 @@ def schedule_edit(request, pk):
         marks = request.POST.get("marks")
         room_no = request.POST.get("room_no", "")
         instructions = request.POST.get("instructions", "")
+        question_paper_id = request.POST.get("question_paper") or None
 
         if not all(
             [
@@ -658,6 +697,9 @@ def schedule_edit(request, pk):
         exam_type = get_object_or_404(ExamType, id=exam_type_id)
         subject = get_object_or_404(Subject, id=subject_id)
         class_level = get_object_or_404(ClassLevel, id=class_level_id)
+        question_paper = None
+        if question_paper_id:
+            question_paper = get_object_or_404(QuestionPaper, id=question_paper_id)
 
         # Check for duplicate (excluding current)
         if (
@@ -685,6 +727,7 @@ def schedule_edit(request, pk):
         schedule.marks = marks
         schedule.room_no = room_no
         schedule.instructions = instructions
+        schedule.question_paper = question_paper
         schedule.save()
 
         messages.success(request, "Exam schedule updated successfully.")
@@ -696,12 +739,13 @@ def schedule_edit(request, pk):
         if academic_year
         else ExamType.objects.none()
     )
-    class_levels = (
-        ClassLevel.objects.filter(
-            sections__academic_year=academic_year, sections__is_active=True
-        ).distinct()
+    class_levels = ClassLevel.objects.filter().order_by("numeric_name")
+    question_papers = (
+        QuestionPaper.objects.filter(academic_year=academic_year)
+        .select_related("question_bank")
+        .order_by("-created_at")
         if academic_year
-        else ClassLevel.objects.none()
+        else QuestionPaper.objects.none()
     )
 
     context = {
@@ -709,6 +753,7 @@ def schedule_edit(request, pk):
         "exam_types": exam_types,
         "class_levels": class_levels,
         "academic_year": academic_year,
+        "question_papers": question_papers,
     }
 
     return render(request, "examinations/schedule_form.html", context)
@@ -730,6 +775,19 @@ def schedule_delete(request, pk):
         "examinations/schedule_confirm_delete.html",
         {"schedule": schedule},
     )
+
+
+@login_required
+@permission_required("examinations", "edit")
+def schedule_toggle_publish(request, pk):
+    """Toggle the published status of an exam schedule."""
+    schedule = get_object_or_404(ExamSchedule, pk=pk)
+    schedule.is_published = not schedule.is_published
+    schedule.save(update_fields=["is_published"])
+    
+    status = "published" if schedule.is_published else "unpublished"
+    messages.success(request, f"Exam schedule {status}. Students can now {'see' if schedule.is_published else 'not see'} this exam.")
+    return redirect("examinations:schedule")
 
 
 @login_required
@@ -838,20 +896,23 @@ def my_exams(request):
     if academic_year and hasattr(request.user, "student_profile"):
         student = request.user.student_profile
 
-        # Get upcoming exams for student's class
-        from datetime import date
-
         today = date.today()
+        
+        # Get upcoming published exams for student's class
         upcoming_exams = ExamSchedule.objects.filter(
             class_level=student.class_level,
+            academic_year=academic_year,
+            is_published=True,
             date__gte=today,
-        ).order_by("date", "start_time")
+        ).select_related("exam_type", "subject", "question_paper").order_by("date", "start_time")
 
-        # Get past exams
+        # Get past published exams
         past_exams = ExamSchedule.objects.filter(
             class_level=student.class_level,
+            academic_year=academic_year,
+            is_published=True,
             date__lt=today,
-        ).order_by("-date", "-start_time")
+        ).select_related("exam_type", "subject").order_by("-date", "-start_time")
 
         # Get grades
         grades = Grade.objects.filter(
@@ -867,3 +928,26 @@ def my_exams(request):
         )
 
     return render(request, "examinations/my_exams.html", context)
+
+
+@login_required
+@permission_required("examinations", "view")
+def exam_detail(request, pk):
+    """View exam details with question paper (for students during exam time)."""
+    exam = get_object_or_404(
+        ExamSchedule.objects.select_related("exam_type", "subject", "class_level", "question_paper"),
+        pk=pk,
+    )
+    
+    # Check if student has access (exam is published and student is in the class)
+    if request.user.role == "student" and hasattr(request.user, "student_profile"):
+        student = request.user.student_profile
+        if exam.class_level != student.class_level or not exam.is_published:
+            messages.error(request, "You don't have permission to view this exam.")
+            return redirect("examinations:my_exams")
+    
+    context = {
+        "exam": exam,
+        "question_paper": exam.question_paper,
+    }
+    return render(request, "examinations/exam_detail.html", context)

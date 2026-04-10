@@ -5,6 +5,7 @@ from .models import (
     PromotionSetting, StudentSetting, FeeSetting,
     LibrarySetting, TransportSetting, ReportCardSetting,
 )
+from students.models import AcademicYear
 
 
 class SchoolInfoForm(forms.ModelForm):
@@ -13,6 +14,17 @@ class SchoolInfoForm(forms.ModelForm):
         fields = "__all__"
         widgets = {
             "address": forms.Textarea(attrs={"rows": 3}),
+        }
+
+
+class AcademicYearForm(forms.ModelForm):
+    """Form for creating/editing academic years."""
+    class Meta:
+        model = AcademicYear
+        fields = ["name", "start_date", "end_date", "is_current", "is_active"]
+        widgets = {
+            "start_date": forms.DateInput(attrs={"type": "date"}),
+            "end_date": forms.DateInput(attrs={"type": "date"}),
         }
 
 

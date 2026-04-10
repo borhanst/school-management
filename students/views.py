@@ -120,7 +120,7 @@ def student_create(request):
                     user = User.objects.create_user(
                         username=data["username"],
                         email=data["email"],
-                        password=data["password"],
+                        password="12345",#data["password"],
                         role="student",
                         first_name=data["first_name"],
                         last_name=data["last_name"],
@@ -165,7 +165,7 @@ def student_create(request):
                     created_fee_invoices = create_admission_fee_invoices(
                         student
                     )
-            except IntegrityError:
+            except IntegrityError as e:
                 form.add_error(
                     "username",
                     "This username is already taken. Please choose another one.",

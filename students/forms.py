@@ -12,7 +12,7 @@ class StudentCreateForm(forms.Form):
     last_name = forms.CharField(max_length=150)
     username = forms.CharField(max_length=150)
     email = forms.EmailField(required=False)
-    password = forms.CharField(min_length=8, widget=forms.PasswordInput())
+    # password = forms.CharField(min_length=8, widget=forms.PasswordInput())
     phone = forms.CharField(max_length=20, required=False)
     date_of_birth = forms.DateField()
     gender = forms.ChoiceField(choices=User.GENDER_CHOICES)

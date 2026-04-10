@@ -32,6 +32,7 @@
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Exam</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Subject</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Paper</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-200">
@@ -41,6 +42,15 @@
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ exam.exam_type.name }}</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ exam.subject.name }}</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ exam.start_time|time:"h:i A" }} - {{ exam.end_time|time:"h:i A" }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                <a href="{% url 'examinations:exam_detail' exam.pk %}" class="text-purple-600 hover:text-purple-700">
+                                    {% if exam.question_paper %}
+                                    <i class="fas fa-file-alt mr-1"></i>View Paper
+                                    {% else %}
+                                    <span class="text-gray-400">Not assigned</span>
+                                    {% endif %}
+                                </a>
+                            </td>
                         </tr>
                         {% endfor %}
                     </tbody>

@@ -1,0 +1,138 @@
+{% extends 'base.html' %}
+{% load permission_tags %}
+
+{% block title %}{% if bank %}Question Papers - {{ bank.name }}{% else %}All Question Papers{% endif %}{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+    {% if bank %}
+    <a href="{% url 'questions:bank_detail' bank.pk %}" class="text-primary-600 hover:text-primary-700">
+        <i class="fas fa-arrow-left mr-2"></i>Back to Question Bank
+    </a>
+    {% else %}
+    <a href="{% url 'questions:bank_list' %}" class="text-primary-600 hover:text-primary-700">
+        <i class="fas fa-arrow-left mr-2"></i>Back to Question Banks
+    </a>
+    {% endif %}
+</div>
+
+<div class="flex justify-between items-center mb-6">
+    <div>
+        <h1 class="text-2xl font-bold text-gray-800">Question Papers</h1>
+        {% if bank %}
+        <p class="text-gray-600 mt-1">{{ bank.name }} - {{ bank.class_level }} {{ bank.subject }}</p>
+        {% else %}
+        <p class="text-gray-600 mt-1">All question papers</p>
+        {% endif %}
+    </div>
+    {% if user|has_permission:"questions.add" %}
+    <div class="flex gap-2">
+        {% if bank %}
+        <a href="{% url 'questions:paper-create' bank.pk %}"
+           class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors">
+            <i class="fas fa-plus mr-2"></i>New Question Paper
+        </a>
+        {% else %}
+        <a href="{% url 'questions:paper-create-standalone' %}"
+           class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors">
+            <i class="fas fa-plus mr-2"></i>Create Question Paper
+        </a>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+
+{% if papers %}
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+    {% for paper in papers %}
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition">
+        <div class="p-5">
+            <div class="flex justify-between items-start mb-3">
+                <div class="flex-1">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-1">{{ paper.name }}</h3>
+                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                        {{ paper.get_paper_type_display }}
+                    </span>
+                    {% if paper.class_level and paper.subject %}
+                    <div class="mt-1 text-xs text-gray-500">{{ paper.class_level }} - {{ paper.subject }}</div>
+                    {% endif %}
+                    {% if paper.is_published %}
+                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 ml-2">
+                        <i class="fas fa-check mr-1"></i>Published
+                    </span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="space-y-2 text-sm text-gray-600 mb-4">
+                <div class="flex justify-between">
+                    <span><i class="fas fa-clock mr-2 text-gray-400"></i>Duration</span>
+                    <span class="font-medium">{{ paper.duration_minutes }} minutes</span>
+                </div>
+                <div class="flex justify-between">
+                    <span><i class="fas fa-star mr-2 text-gray-400"></i>Difficulty</span>
+                    <span class="font-medium">{{ paper.get_difficulty_display }}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span><i class="fas fa-file-alt mr-2 text-gray-400"></i>Questions</span>
+                    <span class="font-medium">{{ paper.paper_questions.count }}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span><i class="fas fa-award mr-2 text-gray-400"></i>Total Marks</span>
+                    <span class="font-medium">{{ paper.total_marks }}</span>
+                </div>
+            </div>
+
+            <div class="flex justify-between items-center pt-3 border-t border-gray-100">
+                <a href="{% url 'questions:paper-detail' paper.pk %}"
+                   class="text-purple-600 hover:text-purple-700 text-sm font-medium">
+                    View Paper <i class="fas fa-arrow-right ml-1"></i>
+                </a>
+                <div class="flex gap-2">
+                    {% if user|has_permission:"questions.edit" %}
+                    <a href="{% url 'questions:paper-edit' paper.pk %}"
+                       class="text-blue-600 hover:text-blue-700" title="Edit">
+                        <i class="fas fa-edit"></i>
+                    </a>
+                    {% endif %}
+                    {% if user|has_permission:"questions.delete" %}
+                    <button type="button"
+                            class="text-red-600 hover:text-red-700"
+                            title="Delete"
+                            data-delete-modal="paper-{{ paper.pk }}"
+                            data-delete-url="{% url 'questions:paper-delete' paper.pk %}"
+                            data-delete-message="Are you sure you want to delete this question paper?"
+                            data-item-name="{{ paper.name }}">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="bg-white rounded-xl shadow-sm border border-gray-100 text-center py-12">
+    <i class="fas fa-file-alt text-6xl text-gray-300 mb-4"></i>
+    <h3 class="text-lg font-medium text-gray-900 mb-2">No Question Papers Yet</h3>
+    {% if bank %}
+    <p class="text-gray-500 mb-4">Create your first question paper from this question bank</p>
+    {% if user|has_permission:"questions.add" %}
+    <a href="{% url 'questions:paper-create' bank.pk %}"
+       class="inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors">
+        <i class="fas fa-plus mr-2"></i>Create Question Paper
+    </a>
+    {% endif %}
+    {% else %}
+    <p class="text-gray-500 mb-4">Create your first standalone question paper</p>
+    {% if user|has_permission:"questions.add" %}
+    <a href="{% url 'questions:paper-create-standalone' %}"
+       class="inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors">
+        <i class="fas fa-plus mr-2"></i>Create Question Paper
+    </a>
+    {% endif %}
+    {% endif %}
+</div>
+{% endif %}
+{% endblock %}

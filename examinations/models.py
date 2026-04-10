@@ -77,6 +77,18 @@ class ExamSchedule(models.Model):
     marks = models.IntegerField()
     room_no = models.CharField(max_length=20, blank=True)
     instructions = models.TextField(blank=True)
+    question_paper = models.ForeignKey(
+        "questions.QuestionPaper",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="exam_schedules",
+        help_text=_("Question paper to be used for this exam"),
+    )
+    is_published = models.BooleanField(
+        default=False,
+        help_text=_("Whether this exam schedule is published and visible to students"),
+    )
 
     class Meta:
         db_table = "examinations_schedule"

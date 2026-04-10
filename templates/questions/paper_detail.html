@@ -1,0 +1,346 @@
+{% extends 'base.html' %}
+{% load permission_tags %}
+
+{% block title %}{{ paper.name }} - Question Paper{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+    {% if paper.question_bank %}
+    <a href="{% url 'questions:paper-list' paper.question_bank.pk %}" class="text-primary-600 hover:text-primary-700">
+        <i class="fas fa-arrow-left mr-2"></i>Back to Question Papers
+    </a>
+    {% else %}
+    <a href="{% url 'questions:paper-list-all' %}" class="text-primary-600 hover:text-primary-700">
+        <i class="fas fa-arrow-left mr-2"></i>Back to Question Papers
+    </a>
+    {% endif %}
+</div>
+
+<!-- Paper Header -->
+<div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
+    <div class="flex justify-between items-start">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-800 mb-2">{{ paper.name }}</h1>
+            {% if paper.class_level and paper.subject %}
+            <p class="text-gray-600 mb-3">{{ paper.class_level }} - {{ paper.subject }}</p>
+            {% elif paper.question_bank %}
+            <p class="text-gray-600 mb-3">{{ paper.question_bank.name }} - {{ paper.question_bank.class_level }} {{ paper.question_bank.subject }}</p>
+            {% endif %}
+            <div class="flex gap-2 flex-wrap">
+                <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+                    {{ paper.get_paper_type_display }}
+                </span>
+                <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-yellow-100 text-yellow-800">
+                    {{ paper.get_difficulty_display }}
+                </span>
+                {% if paper.is_published %}
+                <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+                    <i class="fas fa-check mr-1"></i>Published
+                </span>
+                {% else %}
+                <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-800">
+                    <i class="fas fa-eye-slash mr-1"></i>Draft
+                </span>
+                {% endif %}
+            </div>
+        </div>
+        <div class="flex gap-2">
+            {% if user|has_permission:"questions.edit" %}
+            <form method="post" action="{% url 'questions:paper-toggle-publish' paper.pk %}" class="inline">
+                {% csrf_token %}
+                <button type="submit" class="px-4 py-2 {% if paper.is_published %}bg-gray-600 hover:bg-gray-700{% else %}bg-green-600 hover:bg-green-700{% endif %} text-white rounded-lg transition-colors">
+                    <i class="fas {% if paper.is_published %}fa-eye-slash{% else %}fa-check{% endif %} mr-2"></i>
+                    {% if paper.is_published %}Unpublish{% else %}Publish{% endif %}
+                </button>
+            </form>
+            <a href="{% url 'questions:paper-edit' paper.pk %}"
+               class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                <i class="fas fa-edit mr-2"></i>Edit
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Paper Info -->
+    <div class="grid grid-cols-3 gap-4 mt-6 pt-6 border-t border-gray-100">
+        <div class="text-center">
+            <div class="text-2xl font-bold text-purple-600">{{ paper.duration_minutes }}</div>
+            <div class="text-sm text-gray-500">Minutes</div>
+        </div>
+        <div class="text-center">
+            <div class="text-2xl font-bold text-purple-600">{{ paper.total_marks }}</div>
+            <div class="text-sm text-gray-500">Total Marks</div>
+        </div>
+        <div class="text-center">
+            <div class="text-2xl font-bold text-purple-600">{{ paper.paper_questions.count }}</div>
+            <div class="text-sm text-gray-500">Questions</div>
+        </div>
+    </div>
+
+    {% if paper.instructions %}
+    <div class="mt-6 pt-6 border-t border-gray-100">
+        <h3 class="text-sm font-semibold text-gray-700 mb-2">Instructions</h3>
+        <p class="text-gray-600 whitespace-pre-line">{{ paper.instructions }}</p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Action Buttons - Add Questions -->
+{% if user|has_permission:"questions.add" %}
+<div class="grid grid-cols-3 gap-4 mb-6">
+    <!-- AI Generate Questions -->
+    <a href="{% url 'questions:paper-ai-generate' paper.pk %}"
+       class="bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl shadow-sm border border-purple-100 p-6 hover:shadow-lg transition-all">
+        <div class="flex items-center">
+            <div class="p-3 bg-white bg-opacity-20 rounded-lg mr-4">
+                <i class="fas fa-robot text-2xl"></i>
+            </div>
+            <div>
+                <h3 class="text-lg font-bold">AI Generate</h3>
+                <p class="text-sm text-purple-100">Upload textbook page</p>
+            </div>
+        </div>
+    </a>
+
+    <!-- Create Question -->
+    <a href="{% url 'questions:paper-question-create' paper.pk %}"
+       class="bg-gradient-to-r from-green-600 to-teal-600 text-white rounded-xl shadow-sm border border-green-100 p-6 hover:shadow-lg transition-all">
+        <div class="flex items-center">
+            <div class="p-3 bg-white bg-opacity-20 rounded-lg mr-4">
+                <i class="fas fa-plus-circle text-2xl"></i>
+            </div>
+            <div>
+                <h3 class="text-lg font-bold">Create Question</h3>
+                <p class="text-sm text-green-100">MCQ, Creative, or Short Answer</p>
+            </div>
+        </div>
+    </a>
+
+    <!-- Add Existing Question -->
+    <button type="button"
+            onclick="document.getElementById('add-existing-question-form').classList.toggle('hidden')"
+            class="bg-gradient-to-r from-orange-600 to-red-600 text-white rounded-xl shadow-sm border border-orange-100 p-6 hover:shadow-lg transition-all">
+        <div class="flex items-center">
+            <div class="p-3 bg-white bg-opacity-20 rounded-lg mr-4">
+                <i class="fas fa-book text-2xl"></i>
+            </div>
+            <div>
+                <h3 class="text-lg font-bold">Add Existing</h3>
+                <p class="text-sm text-orange-100">Select from question bank</p>
+            </div>
+        </div>
+    </button>
+</div>
+{% endif %}
+
+<!-- Add Existing Question Form (Hidden by default) -->
+{% if user|has_permission:"questions.edit" %}
+<div id="add-existing-question-form" class="hidden bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
+    <h2 class="text-xl font-bold text-gray-800 mb-4">
+        <i class="fas fa-book mr-2 text-orange-600"></i>Add Question from Bank
+    </h2>
+    <form method="post" action="{% url 'questions:paper-add-question' paper.pk %}">
+        {% csrf_token %}
+        <div class="flex gap-3">
+            <select name="question_id" required class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500">
+                <option value="">Select a question...</option>
+                {% if paper.question_bank %}
+                {% for question in paper.question_bank.questions.all %}
+                <option value="{{ question.pk }}">{{ question.get_question_type_display }}: {{ question.question_text|truncatechars:80 }}</option>
+                {% endfor %}
+                {% else %}
+                <option value="" disabled>No question bank available. Create questions first.</option>
+                {% endif %}
+            </select>
+            <input type="number" name="marks" value="1" min="1" max="100"
+                   class="w-24 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+                   placeholder="Marks">
+            <button type="submit" class="px-6 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors">
+                <i class="fas fa-plus mr-2"></i>Add
+            </button>
+        </div>
+    </form>
+</div>
+{% endif %}
+
+<!-- Questions by Type -->
+<div class="space-y-6">
+    <!-- MCQ Questions -->
+    {% if mcq_questions %}
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100">
+        <div class="p-4 border-b border-gray-100 bg-blue-50 flex justify-between items-center">
+            <h2 class="text-lg font-semibold text-blue-900">
+                <i class="fas fa-list-ul mr-2"></i>MCQ Questions ({{ mcq_questions.count }})
+            </h2>
+        </div>
+        <div class="divide-y divide-gray-100">
+            {% for paper_q in mcq_questions %}
+            <div class="p-4 hover:bg-gray-50">
+                <div class="flex justify-between items-start">
+                    <div class="flex-1">
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="text-sm font-semibold text-gray-500">Q{{ forloop.counter }}</span>
+                            <span class="text-xs px-2 py-1 bg-purple-100 text-purple-700 rounded">{{ paper_q.marks }} mark{{ paper_q.marks|pluralize }}</span>
+                            {% if paper_q.question.ai_generated %}
+                            <span class="text-xs px-2 py-1 bg-yellow-100 text-yellow-700 rounded">
+                                <i class="fas fa-robot mr-1"></i>AI
+                            </span>
+                            {% endif %}
+                        </div>
+                        <p class="text-gray-800 mb-3">{{ paper_q.question.question_text }}</p>
+
+                        <!-- Options -->
+                        <div class="grid grid-cols-2 gap-2 ml-6">
+                            {% for option in paper_q.question.options.all %}
+                            <div class="text-sm {% if option.is_correct %}text-green-700 font-medium{% else %}text-gray-600{% endif %}">
+                                {{ option.label }}) {{ option.option_text }}
+                                {% if option.is_correct %}✓{% endif %}
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% if user|has_permission:"questions.edit" %}
+                    <div class="flex gap-2 ml-4">
+                        <a href="{% url 'questions:question_edit' paper_q.question.pk %}"
+                           class="text-blue-600 hover:text-blue-700 p-1.5 hover:bg-blue-50 rounded"
+                           title="Edit Question">
+                            <i class="fas fa-edit"></i>
+                        </a>
+                        <button type="button"
+                                class="text-red-600 hover:text-red-700 p-1.5 hover:bg-red-50 rounded"
+                                title="Delete Question"
+                                data-delete-modal="remove-question-{{ paper_q.pk }}"
+                                data-delete-url="{% url 'questions:paper-remove-question' paper_q.pk %}"
+                                data-delete-message="Remove this question from the paper?"
+                                data-item-name="{{ paper_q.question.question_text|truncatechars:50 }}">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Creative Questions -->
+    {% if creative_questions %}
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100">
+        <div class="p-4 border-b border-gray-100 bg-green-50 flex justify-between items-center">
+            <h2 class="text-lg font-semibold text-green-900">
+                <i class="fas fa-lightbulb mr-2"></i>Creative Questions ({{ creative_questions.count }})
+            </h2>
+        </div>
+        <div class="divide-y divide-gray-100">
+            {% for paper_q in creative_questions %}
+            <div class="p-4 hover:bg-gray-50">
+                <div class="flex justify-between items-start">
+                    <div class="flex-1">
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="text-sm font-semibold text-gray-500">Q{{ forloop.counter }}</span>
+                            <span class="text-xs px-2 py-1 bg-purple-100 text-purple-700 rounded">{{ paper_q.marks }} marks</span>
+                            {% if paper_q.question.ai_generated %}
+                            <span class="text-xs px-2 py-1 bg-yellow-100 text-yellow-700 rounded">
+                                <i class="fas fa-robot mr-1"></i>AI
+                            </span>
+                            {% endif %}
+                        </div>
+                        <div class="whitespace-pre-line text-gray-800">{{ paper_q.question.question_text }}</div>
+                    </div>
+                    {% if user|has_permission:"questions.edit" %}
+                    <div class="flex gap-2 ml-4">
+                        <a href="{% url 'questions:question_edit' paper_q.question.pk %}"
+                           class="text-blue-600 hover:text-blue-700 p-1.5 hover:bg-blue-50 rounded"
+                           title="Edit Question">
+                            <i class="fas fa-edit"></i>
+                        </a>
+                        <button type="button"
+                                class="text-red-600 hover:text-red-700 p-1.5 hover:bg-red-50 rounded"
+                                title="Delete Question"
+                                data-delete-modal="remove-question-{{ paper_q.pk }}"
+                                data-delete-url="{% url 'questions:paper-remove-question' paper_q.pk %}"
+                                data-delete-message="Remove this question from the paper?"
+                                data-item-name="{{ paper_q.question.question_text|truncatechars:50 }}">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Short Answer Questions -->
+    {% if short_questions %}
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100">
+        <div class="p-4 border-b border-gray-100 bg-yellow-50 flex justify-between items-center">
+            <h2 class="text-lg font-semibold text-yellow-900">
+                <i class="fas fa-pen mr-2"></i>Short Answer Questions ({{ short_questions.count }})
+            </h2>
+        </div>
+        <div class="divide-y divide-gray-100">
+            {% for paper_q in short_questions %}
+            <div class="p-4 hover:bg-gray-50">
+                <div class="flex justify-between items-start">
+                    <div class="flex-1">
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="text-sm font-semibold text-gray-500">Q{{ forloop.counter }}</span>
+                            <span class="text-xs px-2 py-1 bg-purple-100 text-purple-700 rounded">{{ paper_q.marks }} mark{{ paper_q.marks|pluralize }}</span>
+                            {% if paper_q.question.ai_generated %}
+                            <span class="text-xs px-2 py-1 bg-yellow-100 text-yellow-700 rounded">
+                                <i class="fas fa-robot mr-1"></i>AI
+                            </span>
+                            {% endif %}
+                        </div>
+                        <p class="text-gray-800">{{ paper_q.question.question_text }}</p>
+                    </div>
+                    {% if user|has_permission:"questions.edit" %}
+                    <div class="flex gap-2 ml-4">
+                        <a href="{% url 'questions:question_edit' paper_q.question.pk %}"
+                           class="text-blue-600 hover:text-blue-700 p-1.5 hover:bg-blue-50 rounded"
+                           title="Edit Question">
+                            <i class="fas fa-edit"></i>
+                        </a>
+                        <button type="button"
+                                class="text-red-600 hover:text-red-700 p-1.5 hover:bg-red-50 rounded"
+                                title="Delete Question"
+                                data-delete-modal="remove-question-{{ paper_q.pk }}"
+                                data-delete-url="{% url 'questions:paper-remove-question' paper_q.pk %}"
+                                data-delete-message="Remove this question from the paper?"
+                                data-item-name="{{ paper_q.question.question_text|truncatechars:50 }}">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Empty State -->
+    {% if not mcq_questions and not creative_questions and not short_questions %}
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center">
+        <i class="fas fa-file-alt text-6xl text-gray-300 mb-4"></i>
+        <h3 class="text-xl font-semibold text-gray-700 mb-2">No Questions Yet</h3>
+        <p class="text-gray-500 mb-6">Start by adding questions to your paper</p>
+        <div class="flex justify-center gap-4">
+            {% if user|has_permission:"questions.add" %}
+            <a href="{% url 'questions:paper-ai-generate' paper.pk %}"
+               class="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors">
+                <i class="fas fa-robot mr-2"></i>AI Generate Questions
+            </a>
+            <a href="{% url 'questions:paper-question-create' paper.pk %}"
+               class="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
+                <i class="fas fa-plus mr-2"></i>Create Question
+            </a>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

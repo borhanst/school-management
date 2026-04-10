@@ -1,0 +1,200 @@
+{% extends 'base.html' %}
+{% load permission_tags %}
+
+{% block title %}{{ exam.exam_type }} - {{ exam.subject }}{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+    {% if user.role == "student" %}
+    <a href="{% url 'examinations:my_exams' %}" class="text-primary-600 hover:text-primary-700">
+        <i class="fas fa-arrow-left mr-2"></i>Back to My Exams
+    </a>
+    {% else %}
+    <a href="{% url 'examinations:schedule' %}" class="text-primary-600 hover:text-primary-700">
+        <i class="fas fa-arrow-left mr-2"></i>Back to Exam Schedule
+    </a>
+    {% endif %}
+</div>
+
+<!-- Exam Header -->
+<div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
+    <div class="flex justify-between items-start">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-800 mb-2">{{ exam.exam_type.name }}</h1>
+            <p class="text-gray-600 mb-3">{{ exam.subject.name }} - {{ exam.class_level.name }}</p>
+            <div class="flex gap-2 flex-wrap">
+                {% if exam.is_published %}
+                <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+                    <i class="fas fa-check mr-1"></i>Published
+                </span>
+                {% else %}
+                <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-800">
+                    <i class="fas fa-eye-slash mr-1"></i>Draft
+                </span>
+                {% endif %}
+            </div>
+        </div>
+        {% if user.role != "student" and user|has_permission:"examinations,edit" %}
+        <form method="post" action="{% url 'examinations:schedule_toggle_publish' exam.pk %}" class="inline">
+            {% csrf_token %}
+            <button type="submit" class="px-4 py-2 {% if exam.is_published %}bg-gray-600 hover:bg-gray-700{% else %}bg-green-600 hover:bg-green-700{% endif %} text-white rounded-lg transition-colors">
+                <i class="fas {% if exam.is_published %}fa-eye-slash{% else %}fa-check{% endif %} mr-2"></i>
+                {% if exam.is_published %}Unpublish{% else %}Publish{% endif %}
+            </button>
+        </form>
+        {% endif %}
+    </div>
+    
+    <!-- Exam Details -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6 pt-6 border-t border-gray-100">
+        <div class="text-center">
+            <div class="text-2xl font-bold text-purple-600">{{ exam.date|date:"M d, Y" }}</div>
+            <div class="text-sm text-gray-500">Date</div>
+        </div>
+        <div class="text-center">
+            <div class="text-2xl font-bold text-purple-600">{{ exam.start_time|time:"g:i A" }}</div>
+            <div class="text-sm text-gray-500">Start Time</div>
+        </div>
+        <div class="text-center">
+            <div class="text-2xl font-bold text-purple-600">{{ exam.end_time|time:"g:i A" }}</div>
+            <div class="text-sm text-gray-500">End Time</div>
+        </div>
+        <div class="text-center">
+            <div class="text-2xl font-bold text-purple-600">{{ exam.marks }}</div>
+            <div class="text-sm text-gray-500">Marks</div>
+        </div>
+    </div>
+    
+    {% if exam.room_no %}
+    <div class="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+        <p class="text-sm text-blue-800">
+            <i class="fas fa-map-marker-alt mr-2"></i>
+            <strong>Room No:</strong> {{ exam.room_no }}
+        </p>
+    </div>
+    {% endif %}
+    
+    {% if exam.instructions %}
+    <div class="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+        <p class="text-sm text-yellow-800">
+            <i class="fas fa-info-circle mr-2"></i>
+            <strong>Instructions:</strong>
+        </p>
+        <p class="text-sm text-yellow-700 mt-2 whitespace-pre-line">{{ exam.instructions }}</p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Question Paper Section -->
+{% if question_paper %}
+<div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
+    <div class="flex justify-between items-center mb-4">
+        <h2 class="text-xl font-semibold text-gray-800">
+            <i class="fas fa-file-alt mr-2 text-purple-600"></i>Question Paper
+        </h2>
+        <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-purple-100 text-purple-800">
+            {{ question_paper.get_paper_type_display }}
+        </span>
+    </div>
+    
+    <div class="mb-4">
+        <h3 class="text-lg font-medium text-gray-900">{{ question_paper.name }}</h3>
+        <div class="grid grid-cols-3 gap-4 mt-3 text-sm">
+            <div>
+                <span class="text-gray-500">Duration:</span>
+                <span class="ml-2 font-medium">{{ question_paper.duration_minutes }} minutes</span>
+            </div>
+            <div>
+                <span class="text-gray-500">Total Marks:</span>
+                <span class="ml-2 font-medium">{{ question_paper.total_marks }}</span>
+            </div>
+            <div>
+                <span class="text-gray-500">Difficulty:</span>
+                <span class="ml-2 font-medium">{{ question_paper.get_difficulty_display }}</span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Questions by Type -->
+    {% with questions_by_type=question_paper.get_questions_by_type %}
+    
+    <!-- MCQ Questions -->
+    {% if questions_by_type.mcq %}
+    <div class="mt-6 pt-6 border-t border-gray-100">
+        <h3 class="text-md font-semibold text-blue-900 mb-3">
+            <i class="fas fa-list-ul mr-2"></i>MCQ Questions ({{ questions_by_type.mcq.count }})
+        </h3>
+        <div class="space-y-4">
+            {% for paper_q in questions_by_type.mcq %}
+            <div class="p-4 bg-gray-50 rounded-lg">
+                <div class="flex items-center gap-2 mb-2">
+                    <span class="text-sm font-semibold text-gray-700">Q{{ forloop.counter }}</span>
+                    <span class="text-xs px-2 py-1 bg-purple-100 text-purple-700 rounded">{{ paper_q.marks }} mark{{ paper_q.marks|pluralize }}</span>
+                </div>
+                <p class="text-gray-800 mb-3">{{ paper_q.question.question_text }}</p>
+                
+                <!-- Options -->
+                <div class="grid grid-cols-2 gap-2 ml-6">
+                    {% for option in paper_q.question.options.all %}
+                    <div class="text-sm {% if option.is_correct %}text-green-700 font-medium{% else %}text-gray-600{% endif %}">
+                        {{ option.label }}) {{ option.option_text }}
+                        {% if option.is_correct %}✓{% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Creative Questions -->
+    {% if questions_by_type.creative %}
+    <div class="mt-6 pt-6 border-t border-gray-100">
+        <h3 class="text-md font-semibold text-green-900 mb-3">
+            <i class="fas fa-lightbulb mr-2"></i>Creative Questions ({{ questions_by_type.creative.count }})
+        </h3>
+        <div class="space-y-4">
+            {% for paper_q in questions_by_type.creative %}
+            <div class="p-4 bg-gray-50 rounded-lg">
+                <div class="flex items-center gap-2 mb-2">
+                    <span class="text-sm font-semibold text-gray-700">Q{{ forloop.counter }}</span>
+                    <span class="text-xs px-2 py-1 bg-purple-100 text-purple-700 rounded">{{ paper_q.marks }} marks</span>
+                </div>
+                <div class="whitespace-pre-line text-gray-800">{{ paper_q.question.question_text }}</div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Short Answer Questions -->
+    {% if questions_by_type.short_answer %}
+    <div class="mt-6 pt-6 border-t border-gray-100">
+        <h3 class="text-md font-semibold text-yellow-900 mb-3">
+            <i class="fas fa-pen mr-2"></i>Short Answer Questions ({{ questions_by_type.short_answer.count }})
+        </h3>
+        <div class="space-y-4">
+            {% for paper_q in questions_by_type.short_answer %}
+            <div class="p-4 bg-gray-50 rounded-lg">
+                <div class="flex items-center gap-2 mb-2">
+                    <span class="text-sm font-semibold text-gray-700">Q{{ forloop.counter }}</span>
+                    <span class="text-xs px-2 py-1 bg-purple-100 text-purple-700 rounded">{{ paper_q.marks }} mark{{ paper_q.marks|pluralize }}</span>
+                </div>
+                <p class="text-gray-800">{{ paper_q.question.question_text }}</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+    
+    {% endwith %}
+</div>
+{% else %}
+<div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6 text-center">
+    <i class="fas fa-file-alt text-6xl text-gray-300 mb-4"></i>
+    <h3 class="text-lg font-medium text-gray-900 mb-2">No Question Paper Assigned</h3>
+    <p class="text-gray-500">This exam does not have a question paper assigned yet.</p>
+</div>
+{% endif %}
+{% endblock %}

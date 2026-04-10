@@ -1,4 +1,5 @@
 import calendar
+from datetime import date
 from decimal import Decimal
 
 from django.core.management.base import BaseCommand
@@ -10,12 +11,14 @@ from settings_app.models import (
     PromotionSetting, StudentSetting, FeeSetting,
     LibrarySetting, TransportSetting, ReportCardSetting,
 )
+from students.models import AcademicYear
 
 
 class Command(BaseCommand):
-    help = "Seed default settings for Bangladesh education system"
+    help = "Seed default settings and academic years for Bangladesh education system"
 
     def handle(self, *args, **options):
+        self.seed_academic_years()
         self.seed_school_info()
         self.seed_academic_setting()
         self.seed_grading_setting()
@@ -28,6 +31,41 @@ class Command(BaseCommand):
         self.seed_transport_setting()
         self.seed_report_card_setting()
         self.stdout.write(self.style.SUCCESS("Default settings seeded successfully."))
+
+    def seed_academic_years(self):
+        """Seed default academic years."""
+        current_year = date.today().year
+        
+        # Create current academic year
+        current_year_obj, created = AcademicYear.objects.get_or_create(
+            name=f"{current_year}-{current_year + 1}",
+            defaults={
+                "start_date": date(current_year, 1, 1),
+                "end_date": date(current_year + 1, 12, 31),
+                "is_current": True,
+                "is_active": True,
+            },
+        )
+        if created:
+            self.stdout.write(f"  Created AcademicYear: {current_year_obj.name} (Current)")
+        else:
+            self.stdout.write(f"  AcademicYear {current_year_obj.name} already exists")
+
+        # Create previous year (inactive)
+        prev_year = current_year - 1
+        prev_year_obj, created = AcademicYear.objects.get_or_create(
+            name=f"{prev_year}-{prev_year + 1}",
+            defaults={
+                "start_date": date(prev_year, 1, 1),
+                "end_date": date(prev_year + 1, 12, 31),
+                "is_current": False,
+                "is_active": False,
+            },
+        )
+        if created:
+            self.stdout.write(f"  Created AcademicYear: {prev_year_obj.name}")
+        else:
+            self.stdout.write(f"  AcademicYear {prev_year_obj.name} already exists")
 
     def seed_school_info(self):
         obj, created = SchoolInfo.objects.get_or_create(

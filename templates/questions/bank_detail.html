@@ -6,11 +6,11 @@
 {% block content %}
 <div class="mb-6">
     <a href="{% url 'questions:bank_list' %}" class="text-primary-600 hover:text-primary-700">
-        <i class="fas fa-arrow-left mr-2"></i>Back to Question Banks
+        <i class="fas fa-arrow-left mr-2"></i>Back to Question Papers
     </a>
 </div>
 
-<!-- Bank Header -->
+<!-- Paper Header -->
 <div class="bg-white rounded-xl shadow-sm p-6 mb-6 border border-gray-100">
     <div class="flex items-start justify-between">
         <div>
@@ -30,11 +30,29 @@
             {% endif %}
         </div>
         <div class="flex gap-2">
-            {% if user|has_permission:'questions.view' %}
-            <a href="{% url 'questions:export_paper' bank.pk %}" 
+            {% if user|has_permission:"questions.edit" %}
+            <a href="{% url 'questions:bank_edit' bank.pk %}"
+               class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                <i class="fas fa-edit mr-2"></i>Edit Paper
+            </a>
+            {% endif %}
+            <a href="{% url 'questions:paper-list' bank.pk %}"
+               class="inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors">
+                <i class="fas fa-file-alt mr-2"></i>Question Papers ({{ bank.question_papers.count }})
+            </a>
+            <a href="{% url 'questions:export_paper' bank.pk %}"
                class="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
                 <i class="fas fa-file-export mr-2"></i>Export Paper
             </a>
+            {% if user|has_permission:"questions.delete" %}
+            <button type="button"
+                    class="inline-flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                    data-delete-modal="bank-detail-{{ bank.pk }}"
+                    data-delete-url="{% url 'questions:bank_delete' bank.pk %}"
+                    data-delete-message="This will delete the paper and ALL its questions!"
+                    data-item-name="{{ bank.name }}">
+                <i class="fas fa-trash mr-2"></i>Delete Paper
+            </button>
             {% endif %}
         </div>
     </div>
@@ -134,7 +152,12 @@
                         <span class="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-full">{{ question.get_difficulty_display }}</span>
                         <span class="px-2 py-1 bg-indigo-100 text-indigo-700 text-xs rounded-full">{{ question.get_bloom_level_display }}</span>
                     </div>
+                    
+                    {% if question.question_text %}
+                        
                     <div class="whitespace-pre-line text-gray-900">{{ question.question_text }}</div>
+                    {% endif %}
+                        
                     {% if question.question_text_bn %}
                     <div class="mt-2 whitespace-pre-line text-gray-600">{{ question.question_text_bn }}</div>
                     {% endif %}

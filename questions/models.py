@@ -65,6 +65,182 @@ class QuestionBank(models.Model):
         }
 
 
+class QuestionPaper(models.Model):
+    """A question paper/exam paper created from a question bank or standalone."""
+
+    PAPER_TYPE_CHOICES = [
+        ("test", _("Test")),
+        ("quiz", _("Quiz")),
+        ("midterm", _("Midterm Exam")),
+        ("final", _("Final Exam")),
+        ("practice", _("Practice Paper")),
+        ("mock", _("Mock Exam")),
+    ]
+
+    DIFFICULTY_CHOICES = [
+        ("easy", _("Easy")),
+        ("medium", _("Medium")),
+        ("hard", _("Hard")),
+        ("mixed", _("Mixed")),
+    ]
+
+    name = models.CharField(max_length=200)
+    question_bank = models.ForeignKey(
+        QuestionBank,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="question_papers",
+    )
+    class_level = models.ForeignKey(
+        "students.ClassLevel",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="question_papers",
+    )
+    subject = models.ForeignKey(
+        "academics.Subject",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="question_papers",
+    )
+    term = models.ForeignKey(
+        "examinations.Term",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="question_papers",
+    )
+    paper_type = models.CharField(
+        max_length=20,
+        choices=PAPER_TYPE_CHOICES,
+        default="test",
+    )
+    difficulty = models.CharField(
+        max_length=10,
+        choices=DIFFICULTY_CHOICES,
+        default="medium",
+    )
+    total_marks = models.IntegerField(
+        default=0,
+        help_text=_("Total marks for this paper"),
+    )
+    duration_minutes = models.IntegerField(
+        default=60,
+        help_text=_("Duration in minutes"),
+    )
+    instructions = models.TextField(
+        blank=True,
+        help_text=_("General instructions for students"),
+    )
+    academic_year = models.ForeignKey(
+        "students.AcademicYear",
+        on_delete=models.CASCADE,
+        related_name="question_papers",
+    )
+    created_by = models.ForeignKey(
+        "accounts.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="created_question_papers",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    is_published = models.BooleanField(
+        default=False,
+        help_text=_("Whether this paper is ready for use"),
+    )
+
+    class Meta:
+        db_table = "questions_question_paper"
+        verbose_name = _("question paper")
+        verbose_name_plural = _("question papers")
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.name} ({self.get_paper_type_display()})"
+
+    def get_questions(self):
+        """Return all questions in this paper, ordered."""
+        return self.paper_questions.select_related("question").order_by("order")
+
+    def get_questions_by_type(self):
+        """Group questions by type."""
+        questions = self.get_questions()
+        return {
+            "mcq": questions.filter(question__question_type="mcq"),
+            "creative": questions.filter(question__question_type="creative"),
+            "short_answer": questions.filter(question__question_type="short_answer"),
+        }
+
+    def calculate_total_marks(self):
+        """Calculate total marks from all questions."""
+        from django.db.models import Sum
+        total = self.paper_questions.aggregate(
+            total=Sum("marks")
+        )["total"] or 0
+        self.total_marks = total
+        self.save(update_fields=["total_marks"])
+        return total
+
+    def get_or_create_bank(self):
+        """Get or create a question bank for this paper if it doesn't exist."""
+        if self.question_bank:
+            return self.question_bank
+        
+        if not self.class_level or not self.subject:
+            return None
+        
+        bank, created = QuestionBank.objects.get_or_create(
+            name=f"{self.name} - Auto Bank",
+            class_level=self.class_level,
+            subject=self.subject,
+            academic_year=self.academic_year,
+            defaults={"created_by": self.created_by}
+        )
+        
+        if created:
+            self.question_bank = bank
+            self.save(update_fields=["question_bank"])
+        
+        return bank
+
+
+class QuestionPaperQuestion(models.Model):
+    """Linking model connecting questions to question papers."""
+
+    question_paper = models.ForeignKey(
+        QuestionPaper,
+        on_delete=models.CASCADE,
+        related_name="paper_questions",
+    )
+    question = models.ForeignKey(
+        "Question",
+        on_delete=models.CASCADE,
+        related_name="paper_appearances",
+    )
+    order = models.IntegerField(
+        default=0,
+        help_text=_("Display order in the paper"),
+    )
+    marks = models.IntegerField(
+        default=1,
+        help_text=_("Marks for this question in this paper"),
+    )
+
+    class Meta:
+        db_table = "questions_question_paper_question"
+        verbose_name = _("question paper question")
+        verbose_name_plural = _("question paper questions")
+        ordering = ["question_paper", "order"]
+        unique_together = ["question_paper", "question"]
+
+    def __str__(self):
+        return f"{self.question_paper} - Q{self.order}"
+
+
 class Question(models.Model):
     """Individual question with support for bilingual content."""
 
@@ -91,8 +267,17 @@ class Question(models.Model):
 
     question_bank = models.ForeignKey(
         QuestionBank,
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         related_name="questions",
+    )
+    question_paper = models.ForeignKey(
+        QuestionPaper,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="direct_questions",
     )
     question_text = models.TextField(help_text=_("Question in English"))
     question_text_bn = models.TextField(
@@ -149,11 +334,23 @@ class Question(models.Model):
         indexes = [
             models.Index(fields=["question_type", "difficulty"]),
             models.Index(fields=["question_bank", "is_approved"]),
+            models.Index(fields=["question_paper", "is_approved"]),
         ]
 
     def __str__(self):
         type_display = self.get_question_type_display()
         return f"[{type_display}] {self.question_text[:50]}..."
+
+    def get_bank(self):
+        """Get the question bank, creating one if needed from paper."""
+        if self.question_bank:
+            return self.question_bank
+        
+        # If question is directly under a paper, get bank from paper
+        if self.question_paper:
+            return self.question_paper.get_or_create_bank()
+        
+        return None
 
 
 class QuestionOption(models.Model):
@@ -211,6 +408,13 @@ class AIGenerationRequest(models.Model):
     term = models.ForeignKey(
         "examinations.Term",
         on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="ai_generation_requests",
+    )
+    question_paper = models.ForeignKey(
+        QuestionPaper,
+        on_delete=models.CASCADE,
         null=True,
         blank=True,
         related_name="ai_generation_requests",
