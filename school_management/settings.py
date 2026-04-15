@@ -10,9 +10,8 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
-import os
 from pathlib import Path
-
+import os
 from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -27,7 +26,7 @@ load_dotenv(BASE_DIR / ".env")
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = os.environ.get(
     "SECRET_KEY",
-    "django-insecure-nrc%w(qj+#+8&m+#ck7af##n#y=az%n!*v)df0v1)pj$6g+g*c",
+    "django-insecure-nrc%w(qj+#+8&m+#ck7af##n#y=az%n!*v)df0v1)pj$6g+g*c"
 )
 
 # SECURITY WARNING: don't run with debug turned on in production!
@@ -107,10 +106,8 @@ DATABASES = {
         "PASSWORD": os.environ.get("DB_PASSWORD", "postgres"),
         "HOST": os.environ.get("DB_HOST", "localhost"),
         "PORT": os.environ.get("DB_PORT", "5432"),
-        "OPTIONS": {
-            "sslmode": "require",
-        },
-    }
+    }     
+    
 }
 
 # Password validation
