@@ -93,37 +93,6 @@
         </table>
     </div>
     
-    <!-- Pagination -->
-    {% if history.has_other_pages %}
-    <div class="px-6 py-4 border-t border-gray-200">
-        <nav class="flex justify-center">
-            <ul class="flex space-x-2">
-                {% if history.has_previous %}
-                <li>
-                    <a href="?page={{ history.previous_page_number }}" 
-                       class="px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50">
-                        Previous
-                    </a>
-                </li>
-                {% endif %}
-                
-                <li>
-                    <span class="px-4 py-2 text-sm text-gray-700">
-                        Page {{ history.number }} of {{ history.paginator.num_pages }}
-                    </span>
-                </li>
-                
-                {% if history.has_next %}
-                <li>
-                    <a href="?page={{ history.next_page_number }}" 
-                       class="px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50">
-                        Next
-                    </a>
-                </li>
-                {% endif %}
-            </ul>
-        </nav>
-    </div>
-    {% endif %}
+    {% include "partials/pagination.html" with page_obj=history paginator=history.paginator pagination_class="px-6 py-4 border-t border-gray-200 flex items-center justify-center gap-4 text-sm text-gray-700" link_class="px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50" %}
 </div>
 {% endblock %}

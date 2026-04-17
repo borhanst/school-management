@@ -147,17 +147,5 @@
         </table>
     </div>
 </div>
-{% if is_paginated %}
-<div class="mt-4 flex items-center justify-between rounded-xl border border-gray-100 bg-white px-4 py-3 text-sm text-gray-600">
-    <span>Page {{ page_obj.number }} of {{ paginator.num_pages }}</span>
-    <div class="flex gap-2">
-        {% if page_obj.has_previous %}
-        <a href="?page={{ page_obj.previous_page_number }}{% if selected_class %}&class={{ selected_class }}{% endif %}{% if selected_section %}&section={{ selected_section }}{% endif %}{% if selected_student %}&student={{ selected_student }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}" class="rounded-lg border border-gray-300 px-3 py-1.5 hover:bg-gray-50">Previous</a>
-        {% endif %}
-        {% if page_obj.has_next %}
-        <a href="?page={{ page_obj.next_page_number }}{% if selected_class %}&class={{ selected_class }}{% endif %}{% if selected_section %}&section={{ selected_section }}{% endif %}{% if selected_student %}&student={{ selected_student }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}" class="rounded-lg border border-gray-300 px-3 py-1.5 hover:bg-gray-50">Next</a>
-        {% endif %}
-    </div>
-</div>
-{% endif %}
+{% include "partials/pagination.html" with pagination_class="mt-4 flex items-center justify-between rounded-xl border border-gray-100 bg-white px-4 py-3 text-sm text-gray-600" link_class="rounded-lg border border-gray-300 px-3 py-1.5 hover:bg-gray-50" %}
 {% endblock %}

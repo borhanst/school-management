@@ -1,0 +1,47 @@
+{% if page_obj and page_obj.has_other_pages %}
+<div class="{{ pagination_class|default:'flex items-center justify-between border-t border-slate-100 px-6 py-4 text-sm text-slate-600' }}">
+    <span>
+        {% if show_summary %}
+        Showing {{ page_obj.start_index }} to {{ page_obj.end_index }} of {{ paginator.count }}{% if item_label %} {{ item_label }}{% endif %}
+        {% else %}
+        Page {{ page_obj.number }} of {{ paginator.num_pages }}
+        {% endif %}
+    </span>
+
+    <nav class="flex items-center gap-2" aria-label="Pagination">
+        {% if show_numbers and page_obj.has_previous %}
+        <a href="{% querystring page=1 %}" class="{{ icon_link_class|default:'p-2 text-gray-600 hover:bg-gray-100 rounded-lg' }}" aria-label="First page">
+            <i class="fas fa-angle-double-left"></i>
+        </a>
+        {% endif %}
+
+        {% if page_obj.has_previous %}
+        <a href="{% querystring page=page_obj.previous_page_number %}" class="{{ link_class|default:'rounded-lg border border-slate-300 px-3 py-1.5 hover:bg-slate-50' }}">
+            {% if show_numbers %}<i class="fas fa-angle-left"></i>{% else %}Previous{% endif %}
+        </a>
+        {% endif %}
+
+        {% if show_numbers %}
+            {% for num in paginator.page_range %}
+                {% if page_obj.number == num %}
+                <span class="{{ active_link_class|default:'px-3 py-2 bg-primary-600 text-white rounded-lg' }}">{{ num }}</span>
+                {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                <a href="{% querystring page=num %}" class="{{ number_link_class|default:'px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-lg' }}">{{ num }}</a>
+                {% endif %}
+            {% endfor %}
+        {% endif %}
+
+        {% if page_obj.has_next %}
+        <a href="{% querystring page=page_obj.next_page_number %}" class="{{ link_class|default:'rounded-lg border border-slate-300 px-3 py-1.5 hover:bg-slate-50' }}">
+            {% if show_numbers %}<i class="fas fa-angle-right"></i>{% else %}Next{% endif %}
+        </a>
+        {% endif %}
+
+        {% if show_numbers and page_obj.has_next %}
+        <a href="{% querystring page=paginator.num_pages %}" class="{{ icon_link_class|default:'p-2 text-gray-600 hover:bg-gray-100 rounded-lg' }}" aria-label="Last page">
+            <i class="fas fa-angle-double-right"></i>
+        </a>
+        {% endif %}
+    </nav>
+</div>
+{% endif %}
