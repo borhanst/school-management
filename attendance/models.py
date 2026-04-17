@@ -46,6 +46,16 @@ class Attendance(models.Model):
         verbose_name_plural = _("attendances")
         unique_together = ["student", "date", "period"]
         ordering = ["-date", "student__roll_number"]
+        indexes = [
+            models.Index(
+                fields=["academic_year", "date", "status"],
+                name="attendance_yr_date_status_idx",
+            ),
+            models.Index(
+                fields=["student", "academic_year", "date"],
+                name="attendance_stu_yr_date_idx",
+            ),
+        ]
 
     def __str__(self):
         return f"{self.student} - {self.date} - {self.get_status_display()}"
@@ -164,6 +174,12 @@ class LeaveRequest(models.Model):
         verbose_name = _("leave request")
         verbose_name_plural = _("leave requests")
         ordering = ["-created_at"]
+        indexes = [
+            models.Index(
+                fields=["academic_year", "status", "created_at"],
+                name="leave_year_status_created_idx",
+            ),
+        ]
 
     def __str__(self):
         return f"{self.student} - {self.from_date} to {self.to_date}"

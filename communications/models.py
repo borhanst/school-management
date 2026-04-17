@@ -82,6 +82,12 @@ class Notice(models.Model):
         verbose_name = _("notice")
         verbose_name_plural = _("notices")
         ordering = ["-is_pinned", "-publish_date"]
+        indexes = [
+            models.Index(
+                fields=["is_active", "publish_date", "expiry_date"],
+                name="notice_active_pub_exp_idx",
+            ),
+        ]
 
     def __str__(self):
         return self.title

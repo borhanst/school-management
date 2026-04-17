@@ -284,7 +284,7 @@
     </div>
     {% endif %}
     
-    {% if user.is_superuser or user.role == 'admin' or user|has_permission:'accounts.manage_roles' %}
+    {% if 'accounts'|module_is_active and user.is_superuser or 'accounts'|module_is_active and user.role == 'admin' or user|has_permission:'accounts.manage_roles' %}
     <a href="{% url 'roles:role_list' %}" 
        class="flex items-center px-4 py-2.5 text-gray-700 rounded-lg hover:bg-gray-100"
        :class="isActive('/roles/') ? 'bg-primary-50 text-primary-600' : ''">

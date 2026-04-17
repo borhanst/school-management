@@ -1,6 +1,7 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.db.models import Q, Sum
+from django.core.paginator import Paginator
+from django.db.models import Count, Q, Sum
 from django.http import HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -144,17 +145,28 @@ def fee_list(request):
             | Q(fee_structure__fee_type__name__icontains=search)
         )
 
-    total_billed = invoices.aggregate(total=Sum("total_amount"))["total"] or 0
-    total_paid = invoices.aggregate(total=Sum("paid_amount"))["total"] or 0
-    total_due = invoices.aggregate(total=Sum("due_amount"))["total"] or 0
-    overdue_invoices = invoices.filter(due_date__lt=today, due_amount__gt=0)
+    invoice_totals = invoices.aggregate(
+        total_billed=Sum("total_amount"),
+        total_paid=Sum("paid_amount"),
+        total_due=Sum("due_amount"),
+        overdue_count=Count(
+            "id", filter=Q(due_date__lt=today, due_amount__gt=0)
+        ),
+        invoice_count=Count("id"),
+    )
+    total_billed = invoice_totals["total_billed"] or 0
+    total_paid = invoice_totals["total_paid"] or 0
+    total_due = invoice_totals["total_due"] or 0
+
+    paginator = Paginator(invoices, 20)
+    page_obj = paginator.get_page(request.GET.get("page"))
 
     recent_payments = (
         FeePayment.objects.select_related(
             "invoice__student__user",
             "invoice__fee_structure__fee_type",
         )
-        .filter(invoice__in=invoices)
+        .filter(invoice__in=invoices.values("pk"))
         .order_by("-payment_date", "-created_at")[:8]
     )
 
@@ -164,12 +176,16 @@ def fee_list(request):
         "classes": ClassLevel.objects.filter(is_active=True).order_by(
             "numeric_name"
         ),
-        "invoices": invoices,
+        "invoices": page_obj.object_list,
         "recent_payments": recent_payments,
         "total_billed": total_billed,
         "total_paid": total_paid,
         "total_due": total_due,
-        "overdue_count": overdue_invoices.count(),
+        "overdue_count": invoice_totals["overdue_count"] or 0,
+        "invoice_count": invoice_totals["invoice_count"] or 0,
+        "page_obj": page_obj,
+        "paginator": paginator,
+        "is_paginated": page_obj.has_other_pages(),
         "today": today,
         "selected_year": selected_year,
         "selected_class": selected_class,

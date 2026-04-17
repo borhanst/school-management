@@ -1,6 +1,7 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.db.models import Prefetch, Q
+from django.core.paginator import Paginator
+from django.db.models import Count, Prefetch, Q
 from django.http import HttpResponseForbidden
 from django.shortcuts import render
 from django.utils import timezone
@@ -79,9 +80,9 @@ def notice_list(request):
         .filter(Q(expiry_date__isnull=True) | Q(expiry_date__gte=now))
         .select_related("posted_by")
         .prefetch_related(
-            "views",
             Prefetch("for_classes"),
         )
+        .annotate(view_count=Count("views"))
         .order_by("-is_pinned", "-publish_date")
     )
 
@@ -111,16 +112,24 @@ def notice_list(request):
             or normalized_query in notice.content.lower()
         ]
 
+    paginator = Paginator(visible_notices, 20)
+    page_obj = paginator.get_page(request.GET.get("page"))
+    page_notices = list(page_obj.object_list)
+
     NoticeView.objects.bulk_create(
         [
             NoticeView(notice=notice, user=request.user)
-            for notice in visible_notices
+            for notice in page_notices
         ],
         ignore_conflicts=True,
     )
 
     context = {
-        "notices": visible_notices,
+        "notices": page_notices,
+        "notice_count": len(visible_notices),
+        "page_obj": page_obj,
+        "paginator": paginator,
+        "is_paginated": page_obj.has_other_pages(),
         "selected_type": type_filter,
         "search_query": search_query,
         "notice_types": Notice.NOTICE_TYPE_CHOICES,

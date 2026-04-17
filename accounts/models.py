@@ -5,7 +5,7 @@ from django.db.models import Q
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
-from roles.permissions import is_module_active
+from roles.permissions import is_module_active, is_module_inactive
 
 
 class CustomUserManager(UserManager):
@@ -111,7 +111,7 @@ class User(AbstractUser):
         if not self.is_active:
             return False
         if self.is_superuser:
-            return True
+            return not is_module_inactive(module_slug)
         if not is_module_active(module_slug):
             return False
 

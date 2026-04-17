@@ -17,7 +17,7 @@
             <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 <div class="rounded-2xl border border-white/80 bg-white/85 px-5 py-4 shadow-sm backdrop-blur">
                     <p class="text-xs uppercase tracking-[0.2em] text-slate-500">Visible Notices</p>
-                    <p class="mt-2 text-3xl font-bold text-slate-900">{{ notices|length }}</p>
+                    <p class="mt-2 text-3xl font-bold text-slate-900">{{ notice_count }}</p>
                 </div>
                 <div class="rounded-2xl border border-white/80 bg-white/85 px-5 py-4 shadow-sm backdrop-blur">
                     <p class="text-xs uppercase tracking-[0.2em] text-slate-500">Pinned</p>
@@ -127,7 +127,7 @@
                     <div class="mt-3 space-y-2 text-sm text-slate-600">
                         <p>Expiry: {% if notice.expiry_date %}{{ notice.expiry_date|date:"M d, Y h:i A" }}{% else %}No expiry{% endif %}</p>
                         <p>Attachment: {% if notice.attachment %}<a href="{{ notice.attachment.url }}" class="font-medium text-rose-700 hover:text-rose-800">Open file</a>{% else %}None{% endif %}</p>
-                        <p>Views: {{ notice.views.count }}</p>
+                        <p>Views: {{ notice.view_count }}</p>
                     </div>
                 </div>
             </div>
@@ -144,5 +144,18 @@
         </div>
         {% endfor %}
     </section>
+    {% if is_paginated %}
+    <div class="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">
+        <span>Page {{ page_obj.number }} of {{ paginator.num_pages }}</span>
+        <div class="flex gap-2">
+            {% if page_obj.has_previous %}
+            <a href="?page={{ page_obj.previous_page_number }}{% if search_query %}&q={{ search_query|urlencode }}{% endif %}{% if selected_type %}&type={{ selected_type }}{% endif %}" class="rounded-lg border border-slate-300 px-3 py-1.5 hover:bg-slate-50">Previous</a>
+            {% endif %}
+            {% if page_obj.has_next %}
+            <a href="?page={{ page_obj.next_page_number }}{% if search_query %}&q={{ search_query|urlencode }}{% endif %}{% if selected_type %}&type={{ selected_type }}{% endif %}" class="rounded-lg border border-slate-300 px-3 py-1.5 hover:bg-slate-50">Next</a>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
 </div>
 {% endblock %}

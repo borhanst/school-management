@@ -57,3 +57,10 @@ def is_module_active(module_slug: str) -> bool:
     from roles.models import Module
 
     return Module.objects.filter(slug=module_slug, is_active=True).exists()
+
+
+def is_module_inactive(module_slug: str) -> bool:
+    """Return whether the named module exists but is disabled."""
+    from roles.models import Module
+
+    return Module.objects.filter(slug=module_slug, is_active=False).exists()

@@ -101,6 +101,12 @@ class ExamSchedule(models.Model):
             "academic_year",
         ]
         ordering = ["date", "start_time"]
+        indexes = [
+            models.Index(
+                fields=["academic_year", "class_level", "date"],
+                name="exam_sched_yr_class_date_idx",
+            ),
+        ]
 
     def __str__(self):
         return f"{self.exam_type} - {self.subject} - {self.class_level}"

@@ -1,7 +1,9 @@
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.paginator import Paginator
 from django.db import models, transaction
+from django.db.models import Count, Prefetch, Sum
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST, require_http_methods
@@ -449,15 +451,24 @@ def paper_list(request, bank_pk=None):
     bank = None
     if bank_pk:
         bank = get_object_or_404(QuestionBank, pk=bank_pk)
-        papers = bank.question_papers.all().select_related("created_by")
+        papers = bank.question_papers.all().select_related(
+            "created_by", "class_level", "subject"
+        )
     else:
         papers = QuestionPaper.objects.all().select_related(
             "created_by", "question_bank", "class_level", "subject"
         )
 
+    papers = papers.annotate(question_count=Count("paper_questions"))
+    paginator = Paginator(papers, 20)
+    page_obj = paginator.get_page(request.GET.get("page"))
+
     context = {
         "bank": bank,
-        "papers": papers,
+        "papers": page_obj.object_list,
+        "page_obj": page_obj,
+        "paginator": paginator,
+        "is_paginated": page_obj.has_other_pages(),
     }
     return render(request, "questions/paper_list.html", context)
 
@@ -548,18 +559,48 @@ def paper_create(request, bank_pk=None):
 def paper_detail(request, pk):
     """View a question paper with all its questions."""
     paper = get_object_or_404(
-        QuestionPaper.objects.select_related("question_bank", "created_by", "class_level", "subject"),
+        QuestionPaper.objects.select_related(
+            "question_bank", "created_by", "class_level", "subject"
+        ).prefetch_related(
+            Prefetch(
+                "question_bank__questions",
+                queryset=Question.objects.order_by(
+                    "question_type", "-created_at"
+                ),
+            )
+        ),
         pk=pk,
     )
 
     # Recalculate total marks to ensure it's up to date
-    paper.calculate_total_marks()
+    total_marks = paper.paper_questions.aggregate(total=Sum("marks"))[
+        "total"
+    ] or 0
+    if paper.total_marks != total_marks:
+        paper.total_marks = total_marks
+        paper.save(update_fields=["total_marks"])
 
     # Get all questions via QuestionPaperQuestion linking table (ordered)
-    linked_questions_by_type = paper.get_questions_by_type()
+    linked_questions = (
+        paper.paper_questions.select_related("question")
+        .prefetch_related("question__options")
+        .order_by("order")
+    )
+    linked_questions_by_type = {
+        "mcq": [],
+        "creative": [],
+        "short_answer": [],
+    }
+    for paper_question in linked_questions:
+        linked_questions_by_type[
+            paper_question.question.question_type
+        ].append(paper_question)
 
     context = {
         "paper": paper,
+        "question_count": sum(
+            len(questions) for questions in linked_questions_by_type.values()
+        ),
         "mcq_questions": linked_questions_by_type["mcq"],
         "creative_questions": linked_questions_by_type["creative"],
         "short_questions": linked_questions_by_type["short_answer"],

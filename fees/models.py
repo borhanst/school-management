@@ -102,6 +102,16 @@ class FeeInvoice(models.Model):
         verbose_name = _("fee invoice")
         verbose_name_plural = _("fee invoices")
         ordering = ["-created_at"]
+        indexes = [
+            models.Index(
+                fields=["academic_year", "status", "due_date"],
+                name="fee_invoice_yr_status_due_idx",
+            ),
+            models.Index(
+                fields=["student", "academic_year", "due_amount"],
+                name="fee_invoice_stu_yr_due_idx",
+            ),
+        ]
 
     def __str__(self):
         return f"{self.student} - {self.fee_structure} - {self.status}"
@@ -152,6 +162,12 @@ class FeePayment(models.Model):
         verbose_name = _("fee payment")
         verbose_name_plural = _("fee payments")
         ordering = ["-payment_date"]
+        indexes = [
+            models.Index(
+                fields=["payment_date", "created_at"],
+                name="fee_payment_date_created_idx",
+            ),
+        ]
 
     def __str__(self):
         return f"{self.invoice} - {self.amount} - {self.receipt_no}"

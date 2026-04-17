@@ -2,6 +2,7 @@ from datetime import timedelta
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.paginator import Paginator
 from django.db.models import Count, Q, Sum
 from django.http import HttpResponseForbidden
 from django.shortcuts import redirect, render
@@ -79,8 +80,15 @@ def route_list(request):
         routes = routes.filter(vehicle__isnull=True)
 
     routes = routes.order_by("route_no", "name")
+    total_filtered_routes = routes.count()
+    paginator = Paginator(routes, 20)
+    page_obj = paginator.get_page(request.GET.get("page"))
 
-    vehicles = Vehicle.objects.filter(is_active=True).order_by("vehicle_no")
+    vehicles = (
+        Vehicle.objects.filter(is_active=True)
+        .annotate(route_count=Count("routes"))
+        .order_by("vehicle_no")
+    )
     recent_assignments = (
         TransportAssignment.objects.select_related(
             "student__user",
@@ -115,12 +123,15 @@ def route_list(request):
     ).count()
 
     context = {
-        "routes": routes,
+        "routes": page_obj.object_list,
         "vehicles": vehicles,
         "recent_assignments": recent_assignments,
         "search_query": search_query,
         "selected_vehicle": vehicle_filter,
-        "total_routes": routes.count(),
+        "total_routes": total_filtered_routes,
+        "page_obj": page_obj,
+        "paginator": paginator,
+        "is_paginated": page_obj.has_other_pages(),
         "total_vehicles": total_vehicles,
         "total_capacity": total_capacity,
         "active_assignments": active_assignments,

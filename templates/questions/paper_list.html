@@ -75,7 +75,7 @@
                 </div>
                 <div class="flex justify-between">
                     <span><i class="fas fa-file-alt mr-2 text-gray-400"></i>Questions</span>
-                    <span class="font-medium">{{ paper.paper_questions.count }}</span>
+                    <span class="font-medium">{{ paper.question_count }}</span>
                 </div>
                 <div class="flex justify-between">
                     <span><i class="fas fa-award mr-2 text-gray-400"></i>Total Marks</span>
@@ -133,6 +133,19 @@
     </a>
     {% endif %}
     {% endif %}
+</div>
+{% endif %}
+{% if is_paginated %}
+<div class="mt-6 flex items-center justify-between rounded-xl border border-gray-100 bg-white px-4 py-3 text-sm text-gray-600">
+    <span>Page {{ page_obj.number }} of {{ paginator.num_pages }}</span>
+    <div class="flex gap-2">
+        {% if page_obj.has_previous %}
+        <a href="?page={{ page_obj.previous_page_number }}" class="rounded-lg border border-gray-300 px-3 py-1.5 hover:bg-gray-50">Previous</a>
+        {% endif %}
+        {% if page_obj.has_next %}
+        <a href="?page={{ page_obj.next_page_number }}" class="rounded-lg border border-gray-300 px-3 py-1.5 hover:bg-gray-50">Next</a>
+        {% endif %}
+    </div>
 </div>
 {% endif %}
 {% endblock %}

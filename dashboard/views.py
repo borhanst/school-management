@@ -1,5 +1,7 @@
 from django.contrib.auth.decorators import login_required
-from django.db.models import Count, Sum, Q
+from collections import defaultdict
+
+from django.db.models import Count, Q, Sum
 from django.shortcuts import render
 from django.utils import timezone
 
@@ -143,9 +145,12 @@ def get_admin_dashboard(academic_year, today):
 
     # Attendance today
     if academic_year:
-        total_present = Attendance.objects.filter(
-            date=today, status="present", academic_year=academic_year
-        ).count()
+        attendance_totals = Attendance.objects.filter(
+            date=today, academic_year=academic_year
+        ).aggregate(
+            total_present=Count("id", filter=Q(status="present")),
+        )
+        total_present = attendance_totals["total_present"] or 0
 
         attendance_percentage = 0
         if total_students > 0:
@@ -158,19 +163,14 @@ def get_admin_dashboard(academic_year, today):
 
     # Fee collection
     if academic_year:
-        total_fee_due = (
-            FeeInvoice.objects.filter(academic_year=academic_year).aggregate(
-                Sum("total_amount")
-            )["total_amount__sum"]
-            or 0
+        fee_totals = FeeInvoice.objects.filter(
+            academic_year=academic_year
+        ).aggregate(
+            total_fee_due=Sum("total_amount"),
+            total_fee_paid=Sum("paid_amount"),
         )
-
-        total_fee_paid = (
-            FeeInvoice.objects.filter(academic_year=academic_year).aggregate(
-                Sum("paid_amount")
-            )["paid_amount__sum"]
-            or 0
-        )
+        total_fee_due = fee_totals["total_fee_due"] or 0
+        total_fee_paid = fee_totals["total_fee_paid"] or 0
 
         fee_collection_percentage = 0
         if total_fee_due > 0:
@@ -248,8 +248,7 @@ def get_teacher_dashboard(user, academic_year):
         )
 
         if teacher_sections:
-            # Get today's timetable for these sections
-            today_timetable = (
+            today_slots = list(
                 Timetable.objects.filter(
                     section__id__in=teacher_sections,
                     day_of_week=current_day,
@@ -261,7 +260,7 @@ def get_teacher_dashboard(user, academic_year):
 
             # Add status to each timetable slot
             timetable_with_status = []
-            for slot in today_timetable:
+            for slot in today_slots:
                 start_time = slot.period.start_time
                 end_time = slot.period.end_time
 
@@ -332,7 +331,7 @@ def get_student_dashboard(user, academic_year):
 
     # Class Timetable
     if academic_year and student.section:
-        timetable = (
+        timetable = list(
             Timetable.objects.filter(
                 section=student.section, academic_year=academic_year
             )
@@ -356,7 +355,9 @@ def get_student_dashboard(user, academic_year):
         next_class = None
 
         # Get today's timetable for the student
-        today_timetable = timetable.filter(day_of_week=current_day)
+        today_timetable = [
+            slot for slot in timetable if slot.day_of_week == current_day
+        ]
 
         for slot in today_timetable:
             start_time = slot.period.start_time
@@ -372,9 +373,11 @@ def get_student_dashboard(user, academic_year):
         # If no next class today, get tomorrow's first class
         if next_class is None:
             tomorrow_day = (current_day + 1) % 7
-            tomorrow_timetable = timetable.filter(day_of_week=tomorrow_day)
+            tomorrow_timetable = [
+                slot for slot in timetable if slot.day_of_week == tomorrow_day
+            ]
             if tomorrow_timetable:
-                next_class = tomorrow_timetable.first()
+                next_class = tomorrow_timetable[0]
     else:
         timetable = []
         timetable_by_day = {}
@@ -403,41 +406,73 @@ def get_parent_dashboard(user, academic_year):
 
     today = timezone.localdate()
     # Get children
-    children = parent.children.select_related(
+    children = list(parent.children.select_related(
         "user", "class_level", "section", "academic_year"
-    )
-    total_children = children.count()
+    ))
+    total_children = len(children)
     total_due_amount = 0
     total_upcoming_exams = 0
 
+    child_ids = [child.id for child in children]
+    class_ids = {child.class_level_id for child in children}
+
+    attendance_by_student = {}
+    if academic_year and child_ids:
+        attendance_rows = (
+            Attendance.objects.filter(
+                student_id__in=child_ids,
+                academic_year=academic_year,
+            )
+            .values("student_id")
+            .annotate(
+                total=Count("id"),
+                present=Count("id", filter=Q(status="present")),
+            )
+        )
+        attendance_by_student = {
+            row["student_id"]: row for row in attendance_rows
+        }
+
+    fee_due_by_student = {}
+    if academic_year and child_ids:
+        fee_rows = (
+            FeeInvoice.objects.filter(
+                student_id__in=child_ids,
+                academic_year=academic_year,
+            )
+            .values("student_id")
+            .annotate(total=Sum("due_amount"))
+        )
+        fee_due_by_student = {
+            row["student_id"]: row["total"] or 0 for row in fee_rows
+        }
+
+    exams_by_class = defaultdict(list)
+    if class_ids:
+        upcoming_exam_rows = (
+            ExamSchedule.objects.filter(
+                class_level_id__in=class_ids,
+                date__gte=today,
+            )
+            .select_related("subject", "exam_type")
+            .order_by("class_level_id", "date", "start_time")
+        )
+        for exam in upcoming_exam_rows:
+            bucket = exams_by_class[exam.class_level_id]
+            if len(bucket) < 3:
+                bucket.append(exam)
+
     children_data = []
     for child in children:
-        # Attendance
-        if academic_year:
-            total = Attendance.objects.filter(
-                student=child, academic_year=academic_year
-            ).count()
-            present = Attendance.objects.filter(
-                student=child, academic_year=academic_year, status="present"
-            ).count()
-            attendance = round((present / total) * 100, 2) if total > 0 else 0
-        else:
-            attendance = 0
+        attendance_row = attendance_by_student.get(child.id, {})
+        total = attendance_row.get("total", 0)
+        present = attendance_row.get("present", 0)
+        attendance = round((present / total) * 100, 2) if total > 0 else 0
 
-        fee_due = (
-            FeeInvoice.objects.filter(
-                student=child, academic_year=academic_year
-            ).aggregate(total=Sum("due_amount"))["total"]
-            or 0
-        )
+        fee_due = fee_due_by_student.get(child.id, 0)
 
-        upcoming_exams = ExamSchedule.objects.filter(
-            class_level=child.class_level,
-            date__gte=today,
-        ).select_related("subject", "exam_type").order_by("date", "start_time")[
-            :3
-        ]
-        total_upcoming_exams += upcoming_exams.count()
+        upcoming_exams = exams_by_class.get(child.class_level_id, [])
+        total_upcoming_exams += len(upcoming_exams)
         next_exam = upcoming_exams[0] if upcoming_exams else None
 
         total_due_amount += fee_due

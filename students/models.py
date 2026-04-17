@@ -243,6 +243,16 @@ class Student(models.Model):
         verbose_name = _("student")
         verbose_name_plural = _("students")
         ordering = ["roll_number", "admission_no"]
+        indexes = [
+            models.Index(
+                fields=["status", "academic_year", "class_level", "section"],
+                name="student_status_yr_cls_sec_idx",
+            ),
+            models.Index(
+                fields=["academic_year", "is_active", "status"],
+                name="student_yr_active_status_idx",
+            ),
+        ]
 
     def __str__(self):
         return f"{self.admission_no} - {self.user.get_full_name()}"

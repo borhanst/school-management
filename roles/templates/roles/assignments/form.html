@@ -53,7 +53,7 @@
                             {% if role.description %}
                             <p class="text-gray-500">{{ role.description|truncatewords:2 }}</p>
                             {% endif %}
-                            <p class="text-xs text-gray-400">{{ role.permissions.count }} permissions</p>
+                            <p class="text-xs text-gray-400">{{ role.permission_count }} permissions</p>
                         </div>
                     </div>
                     {% endfor %}

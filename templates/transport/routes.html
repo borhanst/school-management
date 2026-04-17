@@ -67,7 +67,7 @@
                     <h2 class="text-lg font-semibold text-slate-900">Routes</h2>
                     <p class="text-sm text-slate-500">Active route plans with fleet and stop coverage.</p>
                 </div>
-                <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-slate-600">{{ routes|length }} routes</span>
+                <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-slate-600">{{ total_routes }} routes</span>
             </div>
 
             <div class="space-y-4 p-6">
@@ -123,6 +123,19 @@
                 </div>
                 {% endfor %}
             </div>
+            {% if is_paginated %}
+            <div class="flex items-center justify-between border-t border-slate-100 px-6 py-4 text-sm text-slate-600">
+                <span>Page {{ page_obj.number }} of {{ paginator.num_pages }}</span>
+                <div class="flex gap-2">
+                    {% if page_obj.has_previous %}
+                    <a href="?page={{ page_obj.previous_page_number }}{% if search_query %}&q={{ search_query|urlencode }}{% endif %}{% if selected_vehicle %}&vehicle={{ selected_vehicle }}{% endif %}" class="rounded-lg border border-slate-300 px-3 py-1.5 hover:bg-slate-50">Previous</a>
+                    {% endif %}
+                    {% if page_obj.has_next %}
+                    <a href="?page={{ page_obj.next_page_number }}{% if search_query %}&q={{ search_query|urlencode }}{% endif %}{% if selected_vehicle %}&vehicle={{ selected_vehicle }}{% endif %}" class="rounded-lg border border-slate-300 px-3 py-1.5 hover:bg-slate-50">Next</a>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
         </div>
 
         <div class="space-y-6">
@@ -146,7 +159,7 @@
                             </div>
                             <div class="text-right">
                                 <p class="text-sm font-semibold text-slate-900">{{ vehicle.capacity }} seats</p>
-                                <p class="mt-1 text-xs text-slate-500">{{ vehicle.routes.count }} routes</p>
+                                <p class="mt-1 text-xs text-slate-500">{{ vehicle.route_count }} routes</p>
                             </div>
                         </div>
                     </article>

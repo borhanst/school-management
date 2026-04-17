@@ -6,6 +6,8 @@ from django.http import HttpResponseForbidden
 from django.shortcuts import redirect
 from django.utils.decorators import method_decorator
 
+from .permissions import is_module_active, is_module_inactive
+
 
 def _permission_denied_response(request, message, redirect_url=None):
     """Return a consistent denied response with a flash message."""
@@ -42,6 +44,15 @@ def permission_required(
                 return HttpResponseForbidden("Authentication required.")
 
             resolved_module = _resolve_module_slug(module_slug, request)
+            if is_module_inactive(resolved_module):
+                denied_message = (
+                    message
+                    or f"You don't have permission to {permission_codename} {resolved_module}."
+                )
+                return _permission_denied_response(
+                    request, denied_message, redirect_url=redirect_url
+                )
+
             if request.user.is_superuser or request.user.has_permission(
                 resolved_module, permission_codename
             ):
@@ -74,7 +85,7 @@ def permission_required_any(*permissions, **kwargs):
                     return redirect(login_url)
                 return HttpResponseForbidden("Authentication required.")
 
-            if request.user.is_superuser or request.user.has_any_permission(permissions):
+            if request.user.has_any_permission(permissions):
                 return view_func(request, *args, **kwargs)
 
             denied_message = (
@@ -103,7 +114,7 @@ def permission_required_all(*permissions, **kwargs):
                     return redirect(login_url)
                 return HttpResponseForbidden("Authentication required.")
 
-            if request.user.is_superuser or request.user.has_all_permissions(permissions):
+            if request.user.has_all_permissions(permissions):
                 return view_func(request, *args, **kwargs)
 
             denied_message = (
@@ -158,11 +169,13 @@ def permission_or_role_required(permission=None, role=None, **kwargs):
                     return redirect(login_url)
                 return HttpResponseForbidden("Authentication required.")
 
-            if request.user.is_superuser or (permission is None and role is None):
+            if permission is None and role is None:
                 return view_func(request, *args, **kwargs)
 
             if permission is not None:
                 module_slug, permission_codename = permission
+                if request.user.is_superuser and is_module_active(module_slug):
+                    return view_func(request, *args, **kwargs)
                 if request.user.has_permission(
                     module_slug, permission_codename
                 ):
@@ -243,10 +256,12 @@ class PermissionRequiredMixin(AccessMixin):
         return self.permission_codename
 
     def has_permission(self):
-        if self.request.user.is_superuser:
-            return True
         module_slug = self.get_module_slug()
         permission_codename = self.get_permission_codename()
+        if is_module_inactive(module_slug):
+            return False
+        if self.request.user.is_superuser:
+            return True
         return self.request.user.has_permission(
             module_slug, permission_codename
         )

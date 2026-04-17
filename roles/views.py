@@ -1,6 +1,7 @@
 from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.db.models import Count
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse_lazy
 from django.views.generic import (
@@ -20,7 +21,7 @@ from .forms import (
 )
 from .decorators import PermissionRequiredMixin
 from .models import Module, PermissionType, Role, UserPermission, UserRole
-from .permissions import is_module_active
+from .permissions import is_module_active, is_module_inactive
 from .services import (
     get_role_permission_matrix,
     save_role_permissions,
@@ -37,9 +38,11 @@ class ManageRolesPermissionMixin(PermissionRequiredMixin):
 
     def has_permission(self):
         user = self.request.user
+        if is_module_inactive(self.module_slug):
+            return False
         if user.is_superuser or user.role == "admin":
             return True
-        return is_module_active(self.module_slug) and user.has_permission(
+        return user.has_permission(
             self.module_slug, self.permission_codename
         )
 
@@ -58,7 +61,7 @@ class ModuleListView(LoginRequiredMixin, ManageRolesPermissionMixin, ListView):
     def get_queryset(self):
         return Module.objects.prefetch_related("permission_types").order_by(
             "order", "name"
-        )
+        ).annotate(permission_type_count=Count("permission_types"))
 
 
 class ModuleCreateView(
@@ -223,6 +226,11 @@ class RoleListView(LoginRequiredMixin, ManageRolesPermissionMixin, ListView):
     context_object_name = "roles"
     ordering = ["-priority", "name"]
 
+    def get_queryset(self):
+        return Role.objects.annotate(permission_count=Count("permissions")).order_by(
+            "-priority", "name"
+        )
+
 
 class RoleCreateView(
     LoginRequiredMixin, ManageRolesPermissionMixin, CreateView
@@ -287,6 +295,11 @@ class RoleDeleteView(
     template_name = "roles/roles/confirm_delete.html"
     success_url = reverse_lazy("roles:role_list")
 
+    def get_queryset(self):
+        return Role.objects.annotate(
+            user_assignment_count=Count("user_assignments")
+        )
+
     def form_valid(self, form):
         role = self.get_object()
         messages.success(
@@ -303,6 +316,9 @@ class RoleDetailView(
     model = Role
     template_name = "roles/roles/detail.html"
     context_object_name = "role"
+
+    def get_queryset(self):
+        return Role.objects.annotate(permission_count=Count("permissions"))
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -365,13 +381,16 @@ class UserRoleAssignView(
     def get(self, request, *args, **kwargs):
         form = UserRoleAssignmentForm()
         users = User.objects.all()
+        roles = Role.objects.filter(is_active=True).annotate(
+            permission_count=Count("permissions")
+        )
         return render(
             request,
             self.template_name,
             {
                 "form": form,
                 "users": users,
-                "roles": Role.objects.filter(is_active=True),
+                "roles": roles,
                 "permission_matrix": get_role_permission_matrix(),
                 "selected_user_id": None,
             },
@@ -390,13 +409,16 @@ class UserRoleAssignView(
             return redirect(self.success_url)
 
         users = User.objects.all()
+        roles = Role.objects.filter(is_active=True).annotate(
+            permission_count=Count("permissions")
+        )
         return render(
             request,
             self.template_name,
             {
                 "form": form,
                 "users": users,
-                "roles": Role.objects.filter(is_active=True),
+                "roles": roles,
                 "permission_matrix": get_role_permission_matrix(),
                 "selected_user_id": selected_user_id,
             },

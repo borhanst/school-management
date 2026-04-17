@@ -1,5 +1,6 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.paginator import Paginator
 from django.db.models import Count, Q, Sum
 from django.http import HttpResponseForbidden
 from django.shortcuts import redirect, render
@@ -64,6 +65,9 @@ def book_list(request):
         books = books.filter(available__lte=0)
 
     books = books.order_by("title", "author")
+    total_filtered_books = books.count()
+    paginator = Paginator(books, 20)
+    page_obj = paginator.get_page(request.GET.get("page"))
 
     recent_issues = (
         BookIssue.objects.select_related(
@@ -90,7 +94,11 @@ def book_list(request):
     ).count()
 
     context = {
-        "books": books,
+        "books": page_obj.object_list,
+        "total_filtered_books": total_filtered_books,
+        "page_obj": page_obj,
+        "paginator": paginator,
+        "is_paginated": page_obj.has_other_pages(),
         "recent_issues": recent_issues,
         "search_query": search_query,
         "selected_availability": availability_filter,

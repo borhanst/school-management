@@ -2,6 +2,8 @@ from datetime import date
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.paginator import Paginator
+from django.db import transaction
 from django.db.models import Count, Q
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -266,25 +268,29 @@ def save_attendance(request):
         },
     )
 
+    marker = (
+        request.user.teacher_profile
+        if hasattr(request.user, "teacher_profile")
+        else None
+    )
     saved_count = 0
-    for student_id, record in data.items():
-        status = record.get("status", "present")
-        remarks = record.get("remarks", "")
+    with transaction.atomic():
+        for student_id, record in data.items():
+            status = record.get("status", "present")
+            remarks = record.get("remarks", "")
 
-        attendance, att_created = Attendance.objects.update_or_create(
-            student_id=student_id,
-            date=selected_date,
-            period=period,
-            academic_year=academic_year,
-            defaults={
-                "status": status,
-                "remarks": remarks,
-                "marked_by": request.user.teacher_profile
-                if hasattr(request.user, "teacher_profile")
-                else None,
-            },
-        )
-        saved_count += 1
+            Attendance.objects.update_or_create(
+                student_id=student_id,
+                date=selected_date,
+                period=period,
+                academic_year=academic_year,
+                defaults={
+                    "status": status,
+                    "remarks": remarks,
+                    "marked_by": marker,
+                },
+            )
+            saved_count += 1
 
     return JsonResponse(
         {
@@ -318,7 +324,7 @@ def attendance_report(request):
     date_from = request.GET.get("date_from")
     date_to = request.GET.get("date_to")
 
-    attendances = []
+    attendances = Attendance.objects.none()
     student = None
 
     if academic_year:
@@ -339,7 +345,10 @@ def attendance_report(request):
             attendances = (
                 Attendance.objects.filter(filters)
                 .select_related(
-                    "student__user", "student__section", "student__class_level"
+                    "student__user",
+                    "student__section",
+                    "student__class_level",
+                    "period",
                 )
                 .order_by("-date", "student__roll_number")
             )
@@ -351,13 +360,17 @@ def attendance_report(request):
 
     # Calculate statistics
     stats = {}
-    if attendances:
-        total = attendances.count()
+    if academic_year:
+        status_counts = {
+            row["status"]: row["count"]
+            for row in attendances.values("status").annotate(count=Count("id"))
+        }
+        total = sum(status_counts.values())
         stats["total"] = total
-        stats["present"] = attendances.filter(status="present").count()
-        stats["absent"] = attendances.filter(status="absent").count()
-        stats["late"] = attendances.filter(status="late").count()
-        stats["leave"] = attendances.filter(status="leave").count()
+        stats["present"] = status_counts.get("present", 0)
+        stats["absent"] = status_counts.get("absent", 0)
+        stats["late"] = status_counts.get("late", 0)
+        stats["leave"] = status_counts.get("leave", 0)
 
         if total > 0:
             stats["present_percent"] = round(
@@ -365,11 +378,17 @@ def attendance_report(request):
             )
             stats["absent_percent"] = round((stats["absent"] / total) * 100, 1)
 
+    paginator = Paginator(attendances, 50)
+    page_obj = paginator.get_page(request.GET.get("page"))
+
     context = {
         "classes": classes,
         "sections": sections,
-        "attendances": attendances,
+        "attendances": page_obj.object_list,
         "stats": stats,
+        "page_obj": page_obj,
+        "paginator": paginator,
+        "is_paginated": page_obj.has_other_pages(),
         "student": student,
         "selected_class": class_id,
         "selected_section": section_id,

@@ -72,7 +72,7 @@
             <div class="text-sm text-gray-500">Total Marks</div>
         </div>
         <div class="text-center">
-            <div class="text-2xl font-bold text-purple-600">{{ paper.paper_questions.count }}</div>
+            <div class="text-2xl font-bold text-purple-600">{{ question_count }}</div>
             <div class="text-sm text-gray-500">Questions</div>
         </div>
     </div>
@@ -170,7 +170,7 @@
     <div class="bg-white rounded-xl shadow-sm border border-gray-100">
         <div class="p-4 border-b border-gray-100 bg-blue-50 flex justify-between items-center">
             <h2 class="text-lg font-semibold text-blue-900">
-                <i class="fas fa-list-ul mr-2"></i>MCQ Questions ({{ mcq_questions.count }})
+                <i class="fas fa-list-ul mr-2"></i>MCQ Questions ({{ mcq_questions|length }})
             </h2>
         </div>
         <div class="divide-y divide-gray-100">
@@ -229,7 +229,7 @@
     <div class="bg-white rounded-xl shadow-sm border border-gray-100">
         <div class="p-4 border-b border-gray-100 bg-green-50 flex justify-between items-center">
             <h2 class="text-lg font-semibold text-green-900">
-                <i class="fas fa-lightbulb mr-2"></i>Creative Questions ({{ creative_questions.count }})
+                <i class="fas fa-lightbulb mr-2"></i>Creative Questions ({{ creative_questions|length }})
             </h2>
         </div>
         <div class="divide-y divide-gray-100">
@@ -278,7 +278,7 @@
     <div class="bg-white rounded-xl shadow-sm border border-gray-100">
         <div class="p-4 border-b border-gray-100 bg-yellow-50 flex justify-between items-center">
             <h2 class="text-lg font-semibold text-yellow-900">
-                <i class="fas fa-pen mr-2"></i>Short Answer Questions ({{ short_questions.count }})
+                <i class="fas fa-pen mr-2"></i>Short Answer Questions ({{ short_questions|length }})
             </h2>
         </div>
         <div class="divide-y divide-gray-100">

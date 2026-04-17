@@ -11,10 +11,10 @@
             <p class="mt-2 text-sm text-gray-500">
                 Are you sure you want to delete "{{ object.name }}"? This action cannot be undone.
             </p>
-            {% if object.user_assignments.exists %}
+            {% if object.user_assignment_count %}
             <div class="mt-4 bg-yellow-50 border border-yellow-200 rounded-md p-3">
                 <p class="text-sm text-yellow-700">
-                    This role is assigned to {{ object.user_assignments.count }} user(s).
+                    This role is assigned to {{ object.user_assignment_count }} user(s).
                 </p>
             </div>
             {% endif %}
