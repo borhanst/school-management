@@ -4,6 +4,7 @@ Use these for admin interfaces and bulk operations.
 """
 
 from django.db.models import Q
+from django.utils import timezone
 
 from roles.permissions import build_permission_key, has_permission_key
 from roles.models import RolePermission, UserPermission, UserRole

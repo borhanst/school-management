@@ -3,9 +3,11 @@ from django.contrib.auth.decorators import login_required
 from django.db.models import Count, Prefetch, Q
 from django.shortcuts import get_object_or_404, redirect, render
 
+from attendance.access import get_user_allowed_sections_for_attendance
 from accounts.models import TeacherProfile
 from roles.decorators import permission_required
-from students.models import AcademicYear, ClassLevel, Section, Student
+from students.access import get_current_academic_year
+from students.models import ClassLevel, Section, Student
 
 from .forms import ClassLevelForm, SectionForm, SubjectForm, TimetableForm
 from .models import Subject, TeacherSubjectAssignment, Timetable
@@ -24,12 +26,13 @@ def get_user_timetable_sections(user, academic_year):
         return base_sections.order_by("class_level__numeric_name", "name")
 
     if user.role == "teacher" and hasattr(user, "teacher_profile"):
-        assigned_section_ids = TeacherSubjectAssignment.objects.filter(
-            teacher=user.teacher_profile,
-            academic_year=academic_year,
-            section__is_active=True,
-        ).values_list("section_id", flat=True)
-        return base_sections.filter(id__in=assigned_section_ids).order_by(
+        allowed_sections = get_user_allowed_sections_for_attendance(
+            user,
+            academic_year,
+        )
+        return base_sections.filter(
+            id__in=allowed_sections.values_list("id", flat=True)
+        ).order_by(
             "class_level__numeric_name", "name"
         )
 
@@ -48,7 +51,7 @@ def get_user_timetable_sections(user, academic_year):
 @permission_required("academics", "view")
 def classes(request):
     """View all classes (class levels and sections)."""
-    current_academic_year = AcademicYear.objects.filter(is_current=True).first()
+    current_academic_year = get_current_academic_year()
     sections_queryset = Section.objects.select_related(
         "academic_year"
     ).annotate(
@@ -108,7 +111,7 @@ def classes(request):
 @permission_required("academics", "view")
 def class_detail(request, pk):
     """Show full details for a class level."""
-    current_academic_year = AcademicYear.objects.filter(is_current=True).first()
+    current_academic_year = get_current_academic_year()
 
     sections_queryset = Section.objects.select_related("academic_year").annotate(
         total_students=Count(
@@ -246,10 +249,7 @@ def section_create(request):
 @permission_required("academics", "view")
 def subjects(request):
     """View all subjects."""
-    try:
-        academic_year = AcademicYear.objects.get(is_current=True)
-    except AcademicYear.DoesNotExist:
-        academic_year = None
+    academic_year = get_current_academic_year()
 
     class_levels = ClassLevel.objects.none()
     sections = Section.objects.none()
@@ -272,16 +272,18 @@ def subjects(request):
     if request.user.role == "teacher" and hasattr(
         request.user, "teacher_profile"
     ):
+        allowed_sections = get_user_allowed_sections_for_attendance(
+            request.user,
+            academic_year,
+        )
         teachers = TeacherProfile.objects.filter(
             pk=request.user.teacher_profile.pk
         ).select_related("user")
         teacher_assignments = assignment_queryset.filter(
             teacher=request.user.teacher_profile,
-            section__is_active=True,
+            section__in=allowed_sections,
         )
-        sections = Section.objects.filter(
-            id__in=teacher_assignments.values_list("section_id", flat=True)
-        ).select_related("class_level").order_by(
+        sections = allowed_sections.select_related("class_level").order_by(
             "class_level__numeric_name", "name"
         )
         class_levels = ClassLevel.objects.filter(
@@ -433,10 +435,7 @@ def subject_delete(request, pk):
 @permission_required("academics", "view")
 def timetable_view(request):
     """View timetable."""
-    try:
-        academic_year = AcademicYear.objects.get(is_current=True)
-    except AcademicYear.DoesNotExist:
-        academic_year = None
+    academic_year = get_current_academic_year()
 
     sections = get_user_timetable_sections(request.user, academic_year)
     selected_class_level = request.GET.get("class_level", "").strip()
@@ -507,9 +506,8 @@ def timetable_view(request):
 @permission_required("academics", "add")
 def timetable_create(request):
     """Create a timetable slot."""
-    try:
-        academic_year = AcademicYear.objects.get(is_current=True)
-    except AcademicYear.DoesNotExist:
+    academic_year = get_current_academic_year()
+    if academic_year is None:
         messages.error(request, "No active academic year found.")
         return redirect("academics:timetable")
 
@@ -588,10 +586,7 @@ def my_class(request):
     except Exception:
         return render(request, "base.html", status=403)
 
-    try:
-        academic_year = AcademicYear.objects.get(is_current=True)
-    except AcademicYear.DoesNotExist:
-        academic_year = None
+    academic_year = get_current_academic_year()
 
     if academic_year and student.section:
         timetable = (

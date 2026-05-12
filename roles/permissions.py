@@ -64,3 +64,36 @@ def is_module_inactive(module_slug: str) -> bool:
     from roles.models import Module
 
     return Module.objects.filter(slug=module_slug, is_active=False).exists()
+
+
+def user_has_permission(
+    user,
+    module_slug: str,
+    permission_codename: str,
+    *,
+    force_refresh: bool = False,
+) -> bool:
+    """Central permission decision used across view entry points."""
+    if not getattr(user, "is_active", False):
+        return False
+
+    if getattr(user, "is_superuser", False):
+        return not is_module_inactive(module_slug)
+
+    if not is_module_active(module_slug):
+        return False
+
+    permission_key = build_permission_key(module_slug, permission_codename)
+    denied_permissions = set()
+    denied_getter = getattr(user, "_get_denied_permissions", None)
+    if callable(denied_getter):
+        denied_permissions = denied_getter() or set()
+    if permission_key in denied_permissions:
+        return False
+
+    if not hasattr(user, "get_all_permissions"):
+        return False
+
+    return permission_key in user.get_all_permissions(
+        force_refresh=force_refresh
+    )

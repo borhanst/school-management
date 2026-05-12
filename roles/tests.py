@@ -20,6 +20,7 @@ from roles.models import (
     UserPermission,
     UserRole,
 )
+from roles.permissions import user_has_permission
 from roles.services import CORE_PERMISSION_CODES
 from students.models import AcademicYear, ClassLevel, Section, Student
 
@@ -180,6 +181,25 @@ class PermissionResolutionTests(PermissionTestMixin, TestCase):
         user.clear_permission_cache()
 
         self.assertFalse(user.has_permission("students", "edit"))
+
+    def test_permission_decision_module_matches_user_method(self):
+        user = self.create_user("teacher_resolution")
+        self.assign_permission(user, "students", "view")
+
+        self.assertEqual(
+            user.has_permission("students", "view"),
+            user_has_permission(user, "students", "view"),
+        )
+
+    def test_permission_decision_denies_inactive_module_for_all_entry_points(self):
+        user = self.create_user("teacher_inactive_module")
+        self.assign_permission(user, "students", "view")
+        Module.objects.filter(slug="students").update(is_active=False)
+        user.clear_permission_cache()
+
+        self.assertFalse(user.has_permission("students", "view"))
+        self.assertFalse(user_has_permission(user, "students", "view"))
+        self.assertFalse(PermissionContext(user).can("students", "view"))
 
 
 @override_settings(ROOT_URLCONF=__name__)

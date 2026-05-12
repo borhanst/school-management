@@ -6,6 +6,11 @@ app_name = "fees"
 
 urlpatterns = [
     path("", views.fee_list, name="list"),
+    path(
+        "generate-monthly-invoices/",
+        views.generate_monthly_invoices,
+        name="generate_monthly_invoices",
+    ),
     path("create-invoice/", views.create_invoice, name="create_invoice"),
     path("invoice/<int:pk>/edit/", views.edit_invoice, name="edit_invoice"),
     path(

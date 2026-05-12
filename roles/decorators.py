@@ -6,7 +6,7 @@ from django.http import HttpResponseForbidden
 from django.shortcuts import redirect
 from django.utils.decorators import method_decorator
 
-from .permissions import is_module_active, is_module_inactive
+from .permissions import user_has_permission
 
 
 def _permission_denied_response(request, message, redirect_url=None):
@@ -44,16 +44,8 @@ def permission_required(
                 return HttpResponseForbidden("Authentication required.")
 
             resolved_module = _resolve_module_slug(module_slug, request)
-            if is_module_inactive(resolved_module):
-                denied_message = (
-                    message
-                    or f"You don't have permission to {permission_codename} {resolved_module}."
-                )
-                return _permission_denied_response(
-                    request, denied_message, redirect_url=redirect_url
-                )
-
-            if request.user.is_superuser or request.user.has_permission(
+            if user_has_permission(
+                request.user,
                 resolved_module, permission_codename
             ):
                 return view_func(request, *args, **kwargs)
@@ -174,10 +166,8 @@ def permission_or_role_required(permission=None, role=None, **kwargs):
 
             if permission is not None:
                 module_slug, permission_codename = permission
-                if request.user.is_superuser and is_module_active(module_slug):
-                    return view_func(request, *args, **kwargs)
-                if request.user.has_permission(
-                    module_slug, permission_codename
+                if user_has_permission(
+                    request.user, module_slug, permission_codename
                 ):
                     return view_func(request, *args, **kwargs)
 
@@ -258,10 +248,7 @@ class PermissionRequiredMixin(AccessMixin):
     def has_permission(self):
         module_slug = self.get_module_slug()
         permission_codename = self.get_permission_codename()
-        if is_module_inactive(module_slug):
-            return False
-        if self.request.user.is_superuser:
-            return True
-        return self.request.user.has_permission(
+        return user_has_permission(
+            self.request.user,
             module_slug, permission_codename
         )

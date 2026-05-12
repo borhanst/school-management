@@ -445,18 +445,115 @@ class MissingMonthlyInvoiceTests(TestCase):
             due_date=date(today.year, today.month, 5),
         )
 
-    def test_fee_list_creates_missing_current_month_invoice(self):
+    def test_fee_list_does_not_create_missing_current_month_invoice(self):
         self.client.force_login(self.admin_user)
 
         response = self.client.get(reverse("fees:list"))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Karim")
+        self.assertFalse(
+            FeeInvoice.objects.filter(
+                student=self.student,
+                fee_structure=self.monthly_structure,
+                due_date__year=date.today().year,
+                due_date__month=date.today().month,
+            ).exists()
+        )
+
+    def test_generate_monthly_invoices_creates_missing_current_month_invoice(self):
+        self.client.force_login(self.admin_user)
+
+        response = self.client.post(reverse("fees:generate_monthly_invoices"))
+
+        self.assertRedirects(response, reverse("fees:list"))
         self.assertTrue(
             FeeInvoice.objects.filter(
                 student=self.student,
                 fee_structure=self.monthly_structure,
                 due_date__year=date.today().year,
                 due_date__month=date.today().month,
+            ).exists()
+        )
+
+    def test_generate_monthly_invoices_is_idempotent(self):
+        self.client.force_login(self.admin_user)
+
+        self.client.post(reverse("fees:generate_monthly_invoices"))
+        self.client.post(reverse("fees:generate_monthly_invoices"))
+
+        self.assertEqual(
+            FeeInvoice.objects.filter(
+                student=self.student,
+                fee_structure=self.monthly_structure,
+                due_date__year=date.today().year,
+                due_date__month=date.today().month,
+            ).count(),
+            1,
+        )
+
+
+class AdmissionInvoiceSignalTests(TestCase):
+    def setUp(self):
+        self.academic_year = AcademicYear.objects.create(
+            name="2026-2027",
+            start_date=date(2026, 1, 1),
+            end_date=date(2026, 12, 31),
+            is_current=True,
+        )
+        self.class_level = ClassLevel.objects.create(
+            name="Class 10",
+            numeric_name=10,
+        )
+        self.monthly_type = FeeType.objects.create(
+            name="Monthly Fee",
+            category="monthly",
+        )
+        self.one_time_type = FeeType.objects.create(
+            name="Admission Fee",
+            category="one_time",
+        )
+        self.monthly_structure = FeeStructure.objects.create(
+            class_level=self.class_level,
+            fee_type=self.monthly_type,
+            academic_year=self.academic_year,
+            amount=Decimal("2500.00"),
+            due_date=date(2026, 2, 10),
+        )
+        self.one_time_structure = FeeStructure.objects.create(
+            class_level=self.class_level,
+            fee_type=self.one_time_type,
+            academic_year=self.academic_year,
+            amount=Decimal("5000.00"),
+            due_date=date(2026, 2, 1),
+        )
+
+    def test_student_creation_triggers_admission_invoices(self):
+        student_user = User.objects.create_user(
+            username="signal_student",
+            password="pass12345",
+            role="student",
+            first_name="Rafi",
+        )
+
+        student = Student.objects.create(
+            user=student_user,
+            admission_no="ADM2026999",
+            admission_date=date(2026, 2, 5),
+            date_of_birth=date(2011, 3, 1),
+            gender="male",
+            class_level=self.class_level,
+            academic_year=self.academic_year,
+        )
+
+        self.assertTrue(
+            FeeInvoice.objects.filter(
+                student=student,
+                fee_structure=self.monthly_structure,
+            ).exists()
+        )
+        self.assertTrue(
+            FeeInvoice.objects.filter(
+                student=student,
+                fee_structure=self.one_time_structure,
             ).exists()
         )

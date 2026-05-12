@@ -4,7 +4,7 @@ import string
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import IntegrityError, transaction
-from django.db.models import Q, Sum
+from django.db.models import Q
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
@@ -12,13 +12,14 @@ from django.utils import timezone
 from django.views.generic import ListView
 
 from accounts.models import User
-from fees.services import create_admission_fee_invoices
 from roles.decorators import (
     PermissionRequiredMixin,
     permission_or_role_required,
     permission_required,
 )
 from roles.services import assign_default_role_to_user
+from students.deletion import delete_or_archive_student
+from students.summary import build_student_profile_summary
 
 from .forms import StudentCreateForm, StudentUpdateForm
 from .models import (
@@ -109,11 +110,6 @@ def student_create(request):
     if request.method == "POST":
         if form.is_valid():
             data = form.cleaned_data
-            created_fee_invoices = {
-                "monthly": 0,
-                "one_time": 0,
-                "total": 0,
-            }
 
             try:
                 with transaction.atomic():
@@ -161,10 +157,6 @@ def student_create(request):
                         request.user, "parent_profile"
                     ):
                         request.user.parent_profile.children.add(student)
-
-                    created_fee_invoices = create_admission_fee_invoices(
-                        student
-                    )
             except IntegrityError as e:
                 form.add_error(
                     "username",
@@ -188,23 +180,10 @@ def student_create(request):
                 }
                 return render(request, "students/form.html", context)
 
-            success_message = (
-                f"Student {student.get_full_name()} created successfully!"
+            messages.success(
+                request,
+                f"Student {student.get_full_name()} created successfully!",
             )
-            if created_fee_invoices["total"]:
-                fee_parts = []
-                if created_fee_invoices["one_time"]:
-                    fee_parts.append(
-                        f"{created_fee_invoices['one_time']} admission fee invoice(s)"
-                    )
-                if created_fee_invoices["monthly"]:
-                    fee_parts.append(
-                        f"{created_fee_invoices['monthly']} monthly fee invoice(s)"
-                    )
-                success_message += (
-                    " " + " and ".join(fee_parts) + " were created."
-                )
-            messages.success(request, success_message)
             return redirect("students:list")
 
         messages.error(request, "Please fix the errors below and try again.")
@@ -233,92 +212,7 @@ def student_detail(request, pk):
         pk=pk,
     )
 
-    from academics.models import Timetable
-    from attendance.models import Attendance
-    from examinations.models import ExamSchedule, Grade
-    from fees.models import FeeInvoice
-
-    current_time = timezone.localtime()
-    today = current_time.date()
-    current_weekday = today.weekday()
-
-    # Attendance
-    total_attendance = Attendance.objects.filter(
-        student=student, academic_year=student.academic_year
-    ).count()
-    present_days = Attendance.objects.filter(
-        student=student, status="present", academic_year=student.academic_year
-    ).count()
-    attendance_percentage = (
-        round((present_days / total_attendance) * 100, 2)
-        if total_attendance > 0
-        else 0
-    )
-
-    # Recent grades
-    grades = Grade.objects.filter(
-        student=student, academic_year=student.academic_year
-    ).select_related("subject", "exam_type")[:5]
-
-    # Fee invoices
-    invoices = FeeInvoice.objects.filter(
-        student=student, academic_year=student.academic_year
-    ).order_by("-created_at")[:5]
-    total_due_amount = (
-        FeeInvoice.objects.filter(
-            student=student, academic_year=student.academic_year
-        ).aggregate(total=Sum("due_amount"))["total"]
-        or 0
-    )
-
-    upcoming_exams = (
-        ExamSchedule.objects.filter(
-            class_level=student.class_level,
-            academic_year=student.academic_year,
-            date__gte=today,
-        )
-        .select_related("subject", "exam_type")
-        .order_by("date", "start_time")[:5]
-    )
-
-    parent_profiles = student.parents.select_related("user")
-    today_timeline = []
-
-    if student.section:
-        today_classes = (
-            Timetable.objects.filter(
-                section=student.section,
-                academic_year=student.academic_year,
-                day_of_week=current_weekday,
-            )
-            .select_related("subject", "period", "teacher__user")
-            .order_by("period__period_no")
-        )
-
-        for slot in today_classes:
-            start_time = slot.period.start_time
-            end_time = slot.period.end_time
-
-            if current_time.time() > end_time:
-                status = "completed"
-            elif start_time <= current_time.time() <= end_time:
-                status = "ongoing"
-            else:
-                status = "upcoming"
-
-            today_timeline.append({"slot": slot, "status": status})
-
-    context = {
-        "student": student,
-        "attendance_percentage": attendance_percentage,
-        "grades": grades,
-        "invoices": invoices,
-        "total_due_amount": total_due_amount,
-        "upcoming_exams": upcoming_exams,
-        "parent_profiles": parent_profiles,
-        "today_timeline": today_timeline,
-        "today_label": today,
-    }
+    context = {"student": student, **build_student_profile_summary(student)}
     return render(request, "students/detail.html", context)
 
 
@@ -419,8 +313,14 @@ def student_delete(request, pk):
     student = get_object_or_404(Student, pk=pk)
 
     if request.method == "POST":
-        student.user.delete()
-        messages.success(request, "Student deleted successfully!")
+        delete_mode = delete_or_archive_student(student)
+        if delete_mode == "archived":
+            messages.success(
+                request,
+                "Student archived successfully. Historical records were preserved.",
+            )
+        else:
+            messages.success(request, "Student deleted successfully!")
         return redirect("students:list")
 
     return render(request, "students/confirm_delete.html", {"student": student})

@@ -168,3 +168,39 @@ def record_invoice_payment(
     invoice.paid_amount += payment_amount
     invoice.save()
     return payment
+
+
+def ensure_transport_assignment_invoice(assignment):
+    """Ensure a transport invoice exists for a transport assignment."""
+    from fees.models import FeeStructure, FeeType
+
+    fee_type, _ = FeeType.objects.get_or_create(
+        name="Transport Fee",
+        defaults={
+            "category": "monthly",
+            "description": "Transport route charge",
+            "is_active": True,
+        },
+    )
+
+    fee_structure, _ = FeeStructure.objects.get_or_create(
+        class_level=assignment.student.class_level,
+        fee_type=fee_type,
+        academic_year=assignment.academic_year,
+        defaults={
+            "amount": assignment.route.fare,
+            "due_date": assignment.start_date,
+            "is_active": True,
+        },
+    )
+
+    if fee_structure.amount != assignment.route.fare:
+        fee_structure.amount = assignment.route.fare
+        fee_structure.save(update_fields=["amount", "updated_at"])
+
+    due_date = _resolve_monthly_due_date(
+        assignment.start_date,
+        assignment.student.admission_date,
+        fee_structure.due_date,
+    )
+    _create_invoice_if_missing(assignment.student, fee_structure, due_date)

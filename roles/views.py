@@ -21,7 +21,7 @@ from .forms import (
 )
 from .decorators import PermissionRequiredMixin
 from .models import Module, PermissionType, Role, UserPermission, UserRole
-from .permissions import is_module_active, is_module_inactive
+from .permissions import user_has_permission
 from .services import (
     get_role_permission_matrix,
     save_role_permissions,
@@ -38,12 +38,12 @@ class ManageRolesPermissionMixin(PermissionRequiredMixin):
 
     def has_permission(self):
         user = self.request.user
-        if is_module_inactive(self.module_slug):
-            return False
         if user.is_superuser or user.role == "admin":
             return True
-        return user.has_permission(
-            self.module_slug, self.permission_codename
+        return user_has_permission(
+            user,
+            self.module_slug,
+            self.permission_codename,
         )
 
 

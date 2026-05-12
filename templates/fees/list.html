@@ -105,6 +105,14 @@
             </div>
             {% if user|has_permission:'fees.collect' or user|has_role:'admin' or user|has_permission:'fees.add' %}
             <div class="flex flex-wrap gap-3">
+                {% if user|has_permission:'fees.add' or user|has_role:'admin' %}
+                <form method="post" action="{% url 'fees:generate_monthly_invoices' %}">
+                    {% csrf_token %}
+                    <button type="submit" class="inline-flex items-center rounded-xl border border-amber-300 bg-white px-4 py-2.5 text-sm font-medium text-amber-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-amber-50">
+                        <i class="fas fa-arrows-rotate mr-2"></i> Generate Monthly Invoices
+                    </button>
+                </form>
+                {% endif %}
                 {% if user|has_permission:'fees.collect' or user|has_role:'admin' %}
                 <a href="{% url 'fees:payment' %}" class="inline-flex items-center rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:border-amber-300 hover:text-amber-700">
                     <i class="fas fa-receipt mr-2"></i> Record Payment

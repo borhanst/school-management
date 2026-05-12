@@ -5,12 +5,19 @@ from django.db.models import Q
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
-from roles.permissions import is_module_active, is_module_inactive
+from roles.permissions import user_has_permission
 
 
 class CustomUserManager(UserManager):
-    def create_superuser(self, username, email=None, password=None, **extra_fields):
-        return super().create_superuser(username, email, password, **extra_fields)
+    def create_superuser(
+        self, username, email=None, password=None, **extra_fields
+    ):
+        extra_fields.setdefault("role", "admin")
+        extra_fields.setdefault("is_staff", True)
+        extra_fields.setdefault("is_superuser", True)
+        return super().create_superuser(
+            username, email, password, **extra_fields
+        )
 
 
 class User(AbstractUser):
@@ -44,7 +51,7 @@ class User(AbstractUser):
     role = models.CharField(
         max_length=20, choices=ROLE_CHOICES, default="student"
     )
-    phone = models.CharField(max_length=20,null=True, unique=True)
+    phone = models.CharField(max_length=20, null=True, unique=True)
     address = models.TextField(blank=True)
     photo = models.ImageField(upload_to="users/photos/", blank=True, null=True)
     gender = models.CharField(max_length=10, choices=GENDER_CHOICES, blank=True)
@@ -82,9 +89,11 @@ class User(AbstractUser):
         active_roles = self.get_active_roles().prefetch_related(
             "role__permissions__module", "role__permissions__permission_type"
         )
-        direct_permissions = self.get_active_direct_permissions().select_related(
-            "role_permission__module",
-            "role_permission__permission_type",
+        direct_permissions = (
+            self.get_active_direct_permissions().select_related(
+                "role_permission__module",
+                "role_permission__permission_type",
+            )
         )
 
         for user_role in active_roles:
@@ -108,19 +117,8 @@ class User(AbstractUser):
     def has_permission(
         self, module_slug, permission_codename, force_refresh=False
     ):
-        if not self.is_active:
-            return False
-        if self.is_superuser:
-            return not is_module_inactive(module_slug)
-        if not is_module_active(module_slug):
-            return False
-
-        permission_key = f"{module_slug}_{permission_codename}"
-        if permission_key in self._get_denied_permissions():
-            return False
-
-        return permission_key in self.get_all_permissions(
-            force_refresh=force_refresh
+        return user_has_permission(
+            self, module_slug, permission_codename, force_refresh=force_refresh
         )
 
     def has_any_permission(self, permissions_list, force_refresh=False):
@@ -216,9 +214,7 @@ class User(AbstractUser):
         elif self.role == "teacher":
             TeacherProfile.objects.get_or_create(
                 user=self,
-                defaults={
-                    "employee_id": self.generate_teacher_employee_id()
-                },
+                defaults={"employee_id": self.generate_teacher_employee_id()},
             )
 
     def generate_teacher_employee_id(self):
@@ -227,9 +223,11 @@ class User(AbstractUser):
         employee_id = base_id
         suffix = 1
 
-        while TeacherProfile.objects.filter(
-            employee_id=employee_id
-        ).exclude(user=self).exists():
+        while (
+            TeacherProfile.objects.filter(employee_id=employee_id)
+            .exclude(user=self)
+            .exists()
+        ):
             employee_id = f"{base_id}-{suffix}"
             suffix += 1
 

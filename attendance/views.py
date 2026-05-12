@@ -15,77 +15,45 @@ from communications.mixins import NoticeCreateMixin
 from roles.decorators import (
     PermissionRequiredMixin,
     permission_required,
-    permission_required_any,
 )
-from students.models import AcademicYear, ClassLevel, Section, Student
-
-from .models import (
-    Attendance,
-    AttendanceSession,
-    LeaveRequest,
-    TeacherAttendancePermission,
+from .access import (
+    can_user_mark_attendance_for_section,
+    get_current_academic_year,
+    get_user_allowed_sections_for_attendance,
+    parent_can_apply_leave,
+    resolve_attendance_marker,
 )
+from students.models import ClassLevel, Section, Student
 
-
-def get_teacher_allowed_sections(teacher, academic_year):
-    """Get sections that a teacher has permission to mark attendance for."""
-    # Admin sees all sections
-    if teacher.user.role == "admin":
-        return Section.objects.filter(
-            academic_year=academic_year, is_active=True
-        )
-
-    # Teachers see only their permitted sections
-    permissions = TeacherAttendancePermission.objects.filter(
-        teacher=teacher, academic_year=academic_year
-    ).values_list("section_id", flat=True)
-
-    return Section.objects.filter(
-        id__in=permissions, academic_year=academic_year, is_active=True
-    )
-
-
-def teacher_can_mark_attendance(teacher, section, academic_year):
-    """Check if a teacher has permission to mark attendance for a section."""
-    # Admin can mark attendance for any section
-    if teacher.user.role == "admin":
-        return True
-
-    # Check if teacher has permission for this section
-    return TeacherAttendancePermission.objects.filter(
-        teacher=teacher, section=section, academic_year=academic_year
-    ).exists()
+from .models import Attendance, AttendanceSession, LeaveRequest
 
 
 @login_required
 @permission_required("attendance", "view")
 def index(request):
     """Dashboard overview of attendance."""
-    try:
-        academic_year = AcademicYear.objects.get(is_current=True)
-    except AcademicYear.DoesNotExist:
-        academic_year = None
-
+    academic_year = get_current_academic_year()
+    
     context = {}
-
+    
     if academic_year:
         # Get attendance statistics
         total_students = Student.objects.filter(
             academic_year=academic_year, is_active=True
         ).count()
-
+        
         today = date.today()
         today_attendance = Attendance.objects.filter(
             date=today, academic_year=academic_year
         ).count()
-
+        
         # Get attendance by status for today
         attendance_by_status = (
             Attendance.objects.filter(date=today, academic_year=academic_year)
             .values("status")
             .annotate(count=Count("id"))
         )
-
+        
         context.update(
             {
                 "total_students": total_students,
@@ -101,28 +69,17 @@ def index(request):
 @permission_required("attendance", "mark")
 def mark_attendance(request):
     """Mark attendance for a section."""
-    try:
-        academic_year = AcademicYear.objects.get(is_current=True)
-    except AcademicYear.DoesNotExist:
-        messages.error(request, "No active academic year found.")
-        return redirect("attendance:mark")
-
-    # Get teacher's allowed sections based on permissions
-    allowed_sections = Section.objects.none()
-
-    if hasattr(request.user, "teacher_profile"):
-        teacher = request.user.teacher_profile
-        allowed_sections = get_teacher_allowed_sections(teacher, academic_year)
-        if not allowed_sections.exists():
-            messages.warning(
-                request,
-                "You don't have permission to mark attendance for any class. Please contact admin.",
-            )
-    elif request.user.role == "admin":
-        # Admin can see all sections
-        allowed_sections = Section.objects.filter(
-            academic_year=academic_year, is_active=True
-        ).select_related("class_level", "academic_year")
+    academic_year = get_current_academic_year()
+    
+    allowed_sections = get_user_allowed_sections_for_attendance(
+        request.user,
+        academic_year,
+    )
+    if hasattr(request.user, "teacher_profile") and not allowed_sections.exists():
+        messages.warning(
+            request,
+            "You don't have permission to mark attendance for any class. Please contact admin.",
+        )
 
     # If no permission, show empty list
     if not allowed_sections:
@@ -143,22 +100,19 @@ def mark_attendance(request):
     existing_attendance = {}
 
     if section_id:
-        # Verify teacher has permission for this section
-        if hasattr(request.user, "teacher_profile"):
-            teacher = request.user.teacher_profile
-            section = get_object_or_404(
-                Section, id=section_id, academic_year=academic_year
+        section = get_object_or_404(
+            Section, id=section_id, academic_year=academic_year
+        )
+        if not can_user_mark_attendance_for_section(
+            request.user,
+            section,
+            academic_year,
+        ):
+            messages.error(
+                request,
+                "You don't have permission to mark attendance for this section.",
             )
-            if not teacher_can_mark_attendance(teacher, section, academic_year):
-                messages.error(
-                    request,
-                    "You don't have permission to mark attendance for this section.",
-                )
-                return redirect("attendance:mark")
-        else:
-            section = get_object_or_404(
-                Section, id=section_id, academic_year=academic_year
-            )
+            return redirect("attendance:mark")
 
         students = (
             Student.objects.filter(
@@ -209,9 +163,8 @@ def save_attendance(request):
     if request.method != "POST":
         return JsonResponse({"error": "Invalid request method"}, status=405)
 
-    try:
-        academic_year = AcademicYear.objects.get(is_current=True)
-    except AcademicYear.DoesNotExist:
+    academic_year = get_current_academic_year()
+    if academic_year is None:
         return JsonResponse({"error": "No active academic year"}, status=400)
 
     section_id = request.POST.get("section_id")
@@ -222,22 +175,16 @@ def save_attendance(request):
     if not section_id or not selected_date or not attendance_data:
         return JsonResponse({"error": "Missing required fields"}, status=400)
 
-    # Check if teacher has permission to mark attendance for this section
-    if hasattr(request.user, "teacher_profile"):
-        teacher = request.user.teacher_profile
-        section = get_object_or_404(
-            Section, id=section_id, academic_year=academic_year
-        )
-        if not teacher_can_mark_attendance(teacher, section, academic_year):
-            return JsonResponse(
-                {
-                    "error": "You don't have permission to mark attendance for this section."
-                },
-                status=403,
-            )
-    elif request.user.role != "admin":
+    section = get_object_or_404(
+        Section, id=section_id, academic_year=academic_year
+    )
+    if not can_user_mark_attendance_for_section(
+        request.user,
+        section,
+        academic_year,
+    ):
         return JsonResponse(
-            {"error": "You don't have permission to mark attendance."},
+            {"error": "You don't have permission to mark attendance for this section."},
             status=403,
         )
 
@@ -248,9 +195,6 @@ def save_attendance(request):
     except json.JSONDecodeError:
         return JsonResponse({"error": "Invalid JSON data"}, status=400)
 
-    section = get_object_or_404(
-        Section, id=section_id, academic_year=academic_year
-    )
     period = None
     if period_id:
         period = get_object_or_404(Period, id=period_id)
@@ -262,17 +206,11 @@ def save_attendance(request):
         period=period,
         academic_year=academic_year,
         defaults={
-            "marked_by": request.user.teacher_profile
-            if hasattr(request.user, "teacher_profile")
-            else None
+            "marked_by": resolve_attendance_marker(request.user)
         },
     )
 
-    marker = (
-        request.user.teacher_profile
-        if hasattr(request.user, "teacher_profile")
-        else None
-    )
+    marker = resolve_attendance_marker(request.user)
     saved_count = 0
     with transaction.atomic():
         for student_id, record in data.items():
@@ -305,10 +243,7 @@ def save_attendance(request):
 @permission_required("attendance", "view_reports")
 def attendance_report(request):
     """View attendance reports."""
-    try:
-        academic_year = AcademicYear.objects.get(is_current=True)
-    except AcademicYear.DoesNotExist:
-        academic_year = None
+    academic_year = get_current_academic_year()
 
     classes = ClassLevel.objects.all()
     sections = (
@@ -409,9 +344,8 @@ def get_students(request):
     if not section_id:
         return JsonResponse({"error": "Section ID required"}, status=400)
 
-    try:
-        academic_year = AcademicYear.objects.get(is_current=True)
-    except AcademicYear.DoesNotExist:
+    academic_year = get_current_academic_year()
+    if academic_year is None:
         return JsonResponse({"error": "No active academic year"}, status=400)
 
     students = (
@@ -439,15 +373,9 @@ def get_students(request):
 
 
 @login_required
-@permission_required_any(
-    ("attendance", "view"), ("attendance", "apply_leave")
-)
 def leave_request_list(request):
     """List all leave requests."""
-    try:
-        academic_year = AcademicYear.objects.get(is_current=True)
-    except AcademicYear.DoesNotExist:
-        academic_year = None
+    academic_year = get_current_academic_year()
 
     status_filter = request.GET.get("status")
 
@@ -521,9 +449,8 @@ class LeaveRequestCreateView(PermissionRequiredMixin, NoticeCreateMixin, View):
         to_date = request.POST.get("to_date")
         reason = request.POST.get("reason")
 
-        try:
-            academic_year = AcademicYear.objects.get(is_current=True)
-        except AcademicYear.DoesNotExist:
+        academic_year = get_current_academic_year()
+        if academic_year is None:
             messages.error(request, "No active academic year found.")
             return redirect(self.get_success_url())
 
@@ -585,10 +512,7 @@ class LeaveRequestCreateView(PermissionRequiredMixin, NoticeCreateMixin, View):
         }
 
     def get_academic_year(self):
-        try:
-            return AcademicYear.objects.get(is_current=True)
-        except AcademicYear.DoesNotExist:
-            return None
+        return get_current_academic_year()
 
     def get_student_for_request(self, academic_year):
         if self.request.user.role == "student":
@@ -641,15 +565,13 @@ class LeaveRequestCreateView(PermissionRequiredMixin, NoticeCreateMixin, View):
 
 
 @method_decorator(login_required, name="dispatch")
-class ParentPendingLeaveRequestMixin(PermissionRequiredMixin):
+class ParentPendingLeaveRequestMixin(View):
     """Restrict leave editing to parent-owned pending requests."""
 
-    module_slug = "attendance"
-    permission_codename = "apply_leave"
     leave_request = None
 
     def dispatch(self, request, *args, **kwargs):
-        if request.user.role != "parent":
+        if not parent_can_apply_leave(request.user):
             messages.error(
                 request, "Only parents can update or delete leave requests."
             )

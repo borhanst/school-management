@@ -7,10 +7,18 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 
-from roles.decorators import permission_required
-from roles.permissions import is_module_active
+from students.access import get_current_academic_year
 from students.models import AcademicYear, ClassLevel
 
+from .access import (
+    can_access_fee_portal,
+    can_collect_fee_payment,
+    can_manage_fee_settings,
+    default_payment_remarks,
+    filter_visible_invoices,
+    is_fee_module_active,
+    is_parent_fee_user,
+)
 from .forms import (
     AdminPaymentLookupForm,
     FeeInvoiceForm,
@@ -26,29 +34,14 @@ from .services import (
 )
 
 
-def _filter_invoices_for_user(queryset, user):
-    """Restrict fee visibility for student and parent users."""
-    if user.role == "student" and hasattr(user, "student_profile"):
-        return queryset.filter(student=user.student_profile)
-
-    if user.role == "parent" and hasattr(user, "parent_profile"):
-        return queryset.filter(student__parents=user.parent_profile).distinct()
-
-    return queryset
-
-
 def _ensure_fee_settings_admin(request):
     """Restrict fee configuration screens to admins and superusers."""
-    if not is_module_active("fees"):
+    if can_manage_fee_settings(request.user):
+        return None
+
+    if not is_fee_module_active():
         messages.error(request, "The fees module is currently inactive.")
         return HttpResponseForbidden("Permission denied.")
-
-    if (
-        request.user.is_superuser
-        or request.user.role == "admin"
-        or request.user.has_permission("fees", "manage_fee")
-    ):
-        return None
 
     messages.error(
         request,
@@ -59,17 +52,12 @@ def _ensure_fee_settings_admin(request):
 
 def _ensure_fee_portal_access(request):
     """Allow fee access for admins, parents, and users with fee view permission."""
-    if not is_module_active("fees"):
+    if can_access_fee_portal(request.user):
+        return None
+
+    if not is_fee_module_active():
         messages.error(request, "The fees module is currently inactive.")
         return HttpResponseForbidden("Permission denied.")
-
-    user = request.user
-    if (
-        user.is_superuser
-        or user.role in {"admin", "parent"}
-        or user.has_permission("fees", "view")
-    ):
-        return None
 
     messages.error(request, "You don't have permission to view fees.")
     return HttpResponseForbidden("Permission denied.")
@@ -77,18 +65,15 @@ def _ensure_fee_portal_access(request):
 
 def _ensure_fee_action_access(request, permission_codename, message):
     """Allow admins and permitted users to perform fee actions."""
-    if not is_module_active("fees"):
+    allowed = can_manage_fee_settings(request.user) or request.user.has_permission(
+        "fees", permission_codename
+    )
+    if allowed:
+        return None
+
+    if not is_fee_module_active():
         messages.error(request, "The fees module is currently inactive.")
         return HttpResponseForbidden("Permission denied.")
-
-    user = request.user
-    if (
-        user.is_superuser
-        or user.role == "admin"
-        or user.has_permission("fees", "manage_fee")
-        or user.has_permission("fees", permission_codename)
-    ):
-        return None
 
     messages.error(request, message)
     return HttpResponseForbidden("Permission denied.")
@@ -101,12 +86,9 @@ def fee_list(request):
     if denied_response:
         return denied_response
 
-    current_academic_year = AcademicYear.objects.filter(is_current=True).first()
+    current_academic_year = get_current_academic_year()
     today = timezone.localdate()
-    is_parent_view = request.user.role == "parent"
-
-    if current_academic_year:
-        ensure_current_month_fee_invoices(current_academic_year, today)
+    is_parent_view = is_parent_fee_user(request.user)
 
     invoices = (
         FeeInvoice.objects.select_related(
@@ -119,7 +101,7 @@ def fee_list(request):
         .prefetch_related("payments")
         .order_by("-due_date", "-created_at")
     )
-    invoices = _filter_invoices_for_user(invoices, request.user)
+    invoices = filter_visible_invoices(invoices, request.user)
 
     selected_year = request.GET.get("year")
     selected_class = request.GET.get("class")
@@ -194,6 +176,40 @@ def fee_list(request):
         "is_parent_view": is_parent_view,
     }
     return render(request, "fees/list.html", context)
+
+
+@login_required
+def generate_monthly_invoices(request):
+    """Generate missing monthly invoices for the current month."""
+    if request.method != "POST":
+        return redirect("fees:list")
+
+    denied_response = _ensure_fee_action_access(
+        request,
+        "add",
+        "You don't have permission to generate monthly invoices.",
+    )
+    if denied_response:
+        return denied_response
+
+    current_academic_year = get_current_academic_year()
+    if current_academic_year is None:
+        messages.error(request, "No active academic year found.")
+        return redirect("fees:list")
+
+    created_count = ensure_current_month_fee_invoices(
+        current_academic_year,
+        timezone.localdate(),
+    )
+    if created_count:
+        messages.success(
+            request,
+            f"Generated {created_count} monthly invoice(s) for the current month.",
+        )
+    else:
+        messages.info(request, "No missing monthly invoices found.")
+
+    return redirect("fees:list")
 
 
 @login_required
@@ -288,7 +304,7 @@ def payment(request):
     if denied_response:
         return denied_response
 
-    if request.user.role != "parent":
+    if not is_parent_fee_user(request.user):
         denied_response = _ensure_fee_action_access(
             request,
             "collect",
@@ -304,7 +320,7 @@ def payment(request):
         "fee_structure__fee_type",
         "academic_year",
     )
-    invoice_queryset = _filter_invoices_for_user(
+    invoice_queryset = filter_visible_invoices(
         invoice_queryset, request.user
     )
 
@@ -358,9 +374,7 @@ def payment(request):
             payment_mode = payment_form.cleaned_data["payment_mode"]
             remarks = payment_form.cleaned_data["remarks"].strip()
             default_remarks = (
-                "Paid from parent fee portal."
-                if request.user.role == "parent"
-                else "Paid from fee desk."
+                default_payment_remarks(request.user)
             )
             normalized_remarks = remarks or default_remarks
 
@@ -402,7 +416,7 @@ def payment_gateway(request):
     if denied_response:
         return denied_response
 
-    if request.user.role != "parent":
+    if not can_collect_fee_payment(request.user):
         denied_response = _ensure_fee_action_access(
             request,
             "collect",
@@ -418,7 +432,7 @@ def payment_gateway(request):
         "fee_structure__fee_type",
         "academic_year",
     )
-    invoice_queryset = _filter_invoices_for_user(
+    invoice_queryset = filter_visible_invoices(
         invoice_queryset, request.user
     )
 
